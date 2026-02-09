@@ -2,7 +2,7 @@
 
 ## Tech Stack
 - **Frontend**: Next.js + TypeScript + Tailwind CSS
-- **Backend**: Convex + TypeScript
+- **Backend**: Convex + TypeScript (use nvm 20+ always)
 - **Database**: PostgreSQL (via Convex)
 - **Auth**: Convex auth
 - **Deployment**: Vercel

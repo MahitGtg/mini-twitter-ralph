@@ -14,7 +14,7 @@ tasks:
       # Exit condition
 
       If you fail to find an improvement, or if you've successfully written a single feature - exit immediately.
-      
+    model: opus
   coder:
     prompt-string: |
       # Find unfinished tasks
@@ -44,8 +44,52 @@ tasks:
       Then write those issues as new pending tasks in the swarm/todo/{feature-name}/ folder.
       When you have done that exit immediately!
     depends_on: [planner]
+    model: sonnet
+
+  tester:
+    prompt-string: |
+      # Find completed tasks to test
+
+      Look under the ./swarm/todo/ folder for files suffixed with ".completed.md" that don't have a corresponding ".tested.md" file.
+
+      # Test the feature
+
+      For each completed task:
+      1. Read the task description and understand what was implemented
+      2. Review the code changes (check recent git commits if needed)
+      3. Run any existing tests: `npm test`
+      4. Manually test the feature using playwright-cli:
+         - Start playwright if not running: `playwright-cli start`
+         - Create a page: `PAGE_ID=$(playwright-cli new-page)`
+         - Test the feature interactively
+         - Take screenshots of any issues: `playwright-cli -e "await page.screenshot({ path: '/tmp/issue-screenshot.png' })" --page $PAGE_ID`
+         - Close the page when done: `playwright-cli close-page $PAGE_ID`
+      5. Check for:
+         - Does it work as described?
+         - Are there any errors in the console?
+         - Is the UI responsive?
+         - Are there edge cases that break it?
+
+      # Report results
+
+      Create a file named "{feature-name}.tested.md" with:
+      - ✅ What works correctly
+      - ❌ Any bugs or issues found
+      - 📝 Suggested improvements
+      - 🖼️ Screenshot paths if any issues found
+
+      If you find bugs, create new pending tasks in swarm/todo/ for fixes.
+
+      # Exit condition
+
+      After testing one completed feature, exit immediately.
+    model: sonnet
+    depends_on:
+      - task: coder
+        condition: success
+
 
 pipelines:
   development:
     iterations: 10
-    tasks: [planner, coder]
+    tasks: [planner, coder, tester]
