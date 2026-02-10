@@ -62,7 +62,7 @@ export default function FollowersPage() {
             No followers yet.
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {followers.map((user) => (
               <UserCard
                 key={user._id}

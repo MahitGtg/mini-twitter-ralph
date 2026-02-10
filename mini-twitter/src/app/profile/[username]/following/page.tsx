@@ -62,7 +62,7 @@ export default function FollowingPage() {
             Not following anyone yet.
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {following.map((user) => (
               <UserCard
                 key={user._id}

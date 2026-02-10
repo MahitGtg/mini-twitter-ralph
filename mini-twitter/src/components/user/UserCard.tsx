@@ -38,15 +38,18 @@ export default function UserCard({ user, currentUserId, compact = false }: UserC
   };
 
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-3">
+    <div
+      className={`flex justify-between rounded-2xl border border-slate-200 bg-white shadow-sm ${compact ? "items-start p-3" : "items-center p-4"}`}
+    >
+      <div className={`flex ${compact ? "items-start gap-2.5" : "items-center gap-3"}`}>
         <UserAvatar
           username={user.username}
           name={user.name}
           avatarUrl={user.avatarUrl}
+          size={compact ? "sm" : "md"}
           href={`/profile/${user.username}`}
         />
-        <div>
+        <div className={compact ? "pt-0.5" : ""}>
           <Link
             href={`/profile/${user.username}`}
             className="group inline-flex flex-col"

@@ -49,11 +49,19 @@ export default function SearchPage() {
         ) : searchResults === undefined ? (
           <SearchSkeleton />
         ) : searchResults.length === 0 ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">No users found</h2>
-            <p className="mt-1 text-sm text-slate-500">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+            <div
+              aria-hidden="true"
+              className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-lg"
+            >
+              ?
+            </div>
+            <h2 className="text-base font-semibold text-slate-900">No users found</h2>
+            <p className="mt-2 text-sm text-slate-500">
               No results for <span className="font-medium text-slate-700">"{debouncedSearch}"</span>.
-              Try another username or name.
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Check the spelling or try a different username or name.
             </p>
           </section>
         ) : (

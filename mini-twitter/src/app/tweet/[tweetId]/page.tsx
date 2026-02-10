@@ -9,6 +9,8 @@ import MainLayout from "@/components/layout/MainLayout";
 import TweetCard from "@/components/tweets/TweetCard";
 import TweetSkeleton from "@/components/tweets/TweetSkeleton";
 
+const CONVEX_ID_PATTERN = /^[a-z0-9]+$/;
+
 function LoadingState() {
   return (
     <MainLayout>
@@ -24,7 +26,10 @@ function NotFoundState({ tweetId }: { tweetId: string }) {
   return (
     <MainLayout>
       <div className="space-y-4">
-        <Link href="/" className="text-slate-500 hover:text-slate-700">
+        <Link
+          href="/"
+          className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+        >
           ← Back
         </Link>
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
@@ -44,7 +49,10 @@ export default function TweetDetailPage() {
   const params = useParams<{ tweetId?: string | string[] }>();
   const rawTweetId = params?.tweetId;
   const tweetId = Array.isArray(rawTweetId) ? rawTweetId[0] : rawTweetId;
-  const tweetIdValue = tweetId as Id<"tweets"> | undefined;
+  const hasValidTweetId = Boolean(
+    tweetId && CONVEX_ID_PATTERN.test(tweetId) && tweetId.length >= 20,
+  );
+  const tweetIdValue = hasValidTweetId ? (tweetId as Id<"tweets">) : undefined;
 
   const tweet = useQuery(
     api.tweets.getTweetById,
@@ -52,8 +60,8 @@ export default function TweetDetailPage() {
   );
   const currentUser = useQuery(api.users.getCurrentUser);
 
-  if (!tweetId) {
-    return <NotFoundState tweetId="unknown" />;
+  if (!tweetId || !hasValidTweetId) {
+    return <NotFoundState tweetId={tweetId ?? "unknown"} />;
   }
 
   if (tweet === undefined) {
@@ -66,18 +74,21 @@ export default function TweetDetailPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-slate-500 hover:text-slate-700">
-            ← Back
-          </Link>
+      <div className="space-y-6">
+        <Link
+          href="/"
+          className="inline-flex w-fit items-center rounded-full border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+        >
+          ← Back
+        </Link>
+        <div className="space-y-4">
           <h1 className="text-xl font-semibold text-slate-900">Tweet</h1>
+          <TweetCard
+            tweet={tweet}
+            author={tweet.author ?? null}
+            currentUserId={currentUser?._id}
+          />
         </div>
-        <TweetCard
-          tweet={tweet}
-          author={tweet.author ?? null}
-          currentUserId={currentUser?._id}
-        />
       </div>
     </MainLayout>
   );

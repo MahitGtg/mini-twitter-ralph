@@ -89,23 +89,23 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
             </h1>
             <p className="text-sm text-slate-500">@{user.username}</p>
             <p className="mt-2 text-sm text-slate-600">{user.bio}</p>
-            <p className="mt-2 text-xs text-slate-500">
-              <span>{tweetCount ?? 0} tweets</span>
-              {" · "}
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-600">
+              <span className="font-medium text-slate-700">{tweetCount ?? 0} Tweets</span>
               <Link
                 href={`/profile/${user.username}/followers`}
-                className="hover:underline"
+                className="inline-flex items-baseline gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
               >
-                {followerCount} followers
+                <span className="font-semibold">{followerCount}</span>
+                <span className="text-xs uppercase tracking-wide text-slate-500">Followers</span>
               </Link>
-              {" · "}
               <Link
                 href={`/profile/${user.username}/following`}
-                className="hover:underline"
+                className="inline-flex items-baseline gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
               >
-                {followingCount} following
+                <span className="font-semibold">{followingCount}</span>
+                <span className="text-xs uppercase tracking-wide text-slate-500">Following</span>
               </Link>
-            </p>
+            </div>
           </div>
         </div>
         <div className="flex min-h-[3.25rem] flex-col items-start justify-center gap-1">
