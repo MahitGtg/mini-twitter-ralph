@@ -73,7 +73,7 @@ export default function ProfilePage() {
   const tabClass = (isActive: boolean) =>
     `px-3 pb-3 text-sm transition ${
       isActive
-        ? "border-b-2 border-sky-500 font-semibold text-slate-900"
+        ? "border-b-2 border-sky-600 font-semibold text-sky-700"
         : "text-slate-500 hover:text-slate-700"
     }`;
 

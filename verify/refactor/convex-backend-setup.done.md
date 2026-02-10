@@ -4,3 +4,5 @@
 - `src/app/search/page.tsx` (via `src/components/user/UserCard.tsx`): made username/name text clickable so profile navigation is available from both avatar and text.
 - `src/app/page.tsx`: improved signed-out home state with clearer primary/secondary CTAs while keeping authenticated feed hidden when logged out.
 - `src/components/auth/SignUpForm.tsx`: added persistent helper copy describing password minimum length before submission.
+- `src/app/search/page.tsx`: add an explicit empty state for zero results and keep the query visible after search.
+- `src/components/user/ProfileHeader.tsx`: keep the follow confirmation message in a fixed-height slot to avoid layout shift.

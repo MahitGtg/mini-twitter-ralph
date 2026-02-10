@@ -108,7 +108,7 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-h-[3.25rem] flex-col items-start justify-center gap-1">
           {isCurrentUser ? (
             <button
               type="button"
@@ -118,20 +118,24 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
               {isEditing ? "Cancel" : "Edit profile"}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={handleToggleFollow}
-              disabled={isTogglingFollow}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              {isTogglingFollow ? "Updating..." : isFollowing ? "Unfollow" : "Follow"}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleToggleFollow}
+                disabled={isTogglingFollow}
+                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                {isTogglingFollow ? "Updating..." : isFollowing ? "Unfollow" : "Follow"}
+              </button>
+              <div className="h-5">
+                {followStatus ? (
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
+                    {followStatus}
+                  </span>
+                ) : null}
+              </div>
+            </>
           )}
-          {!isCurrentUser && followStatus ? (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-              {followStatus}
-            </span>
-          ) : null}
         </div>
       </div>
 

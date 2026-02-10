@@ -69,7 +69,7 @@ export default function UserCard({ user, currentUserId, compact = false }: UserC
         <button
           type="button"
           onClick={handleToggleFollow}
-          className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:border-slate-300"
+          className="inline-flex w-24 items-center justify-center rounded-full border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:border-slate-300"
         >
           {isFollowing ? "Unfollow" : "Follow"}
         </button>

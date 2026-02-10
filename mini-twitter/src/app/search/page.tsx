@@ -48,14 +48,18 @@ export default function SearchPage() {
           </p>
         ) : searchResults === undefined ? (
           <SearchSkeleton />
+        ) : searchResults.length === 0 ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900">No users found</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              No results for <span className="font-medium text-slate-700">"{debouncedSearch}"</span>.
+              Try another username or name.
+            </p>
+          </section>
         ) : (
           <section>
             <h2 className="mb-4 text-sm font-medium text-slate-500">
-              {searchResults.length === 0
-                ? "No users found"
-                : `${searchResults.length} user${
-                    searchResults.length === 1 ? "" : "s"
-                  } found`}
+              {searchResults.length} user{searchResults.length === 1 ? "" : "s"} found
             </h2>
             <div className="space-y-3">
               {searchResults.map((user) => (

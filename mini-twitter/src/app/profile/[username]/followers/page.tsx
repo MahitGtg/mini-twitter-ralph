@@ -44,11 +44,11 @@ export default function FollowersPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
+      <div className="space-y-8">
+        <div className="space-y-2">
           <Link
             href={`/profile/${username}`}
-            className="text-slate-500 hover:text-slate-700"
+            className="inline-flex text-sm text-slate-500 hover:text-slate-700"
           >
             ← Back
           </Link>

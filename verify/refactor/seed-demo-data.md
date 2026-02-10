@@ -1,0 +1,3 @@
+- Search results: add stronger empty-state hierarchy (icon + helper copy) to reduce ambiguity.
+- Profile header: align follower/following counts and label casing for quicker scanning.
+- Followers/following list: increase vertical spacing between cards to improve readability.

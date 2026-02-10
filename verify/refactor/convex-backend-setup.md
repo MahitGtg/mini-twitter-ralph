@@ -1,2 +1,0 @@
-- `src/app/search/page.tsx`: add an explicit empty state for zero results and keep the query visible after search.
-- `src/components/user/ProfileHeader.tsx`: keep the follow confirmation message in a fixed-height slot to avoid layout shift.
