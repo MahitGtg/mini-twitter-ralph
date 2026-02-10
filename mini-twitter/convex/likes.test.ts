@@ -126,4 +126,62 @@ describe("likes", () => {
     expect(liked).toBe(true);
     expect(anonLiked).toBe(false);
   });
+
+  it("returns empty list when user has no likes", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t, "viewer@example.com");
+
+    const liked = await t.query(api.likes.getLikedTweets, { userId });
+
+    expect(liked).toEqual([]);
+  });
+
+  it("returns liked tweets in reverse chronological order", async () => {
+    const t = convexTest(schema, modules);
+    const authorId = await createUser(t, "author@example.com");
+    const likerId = await createUser(t, "liker@example.com");
+    const tweetA = await createTweet(t, authorId);
+    const tweetB = await createTweet(t, authorId);
+    const asLiker = t.withIdentity({ subject: likerId });
+
+    await asLiker.mutation(api.likes.likeTweet, { tweetId: tweetA });
+    await asLiker.mutation(api.likes.likeTweet, { tweetId: tweetB });
+
+    const liked = await t.query(api.likes.getLikedTweets, { userId: likerId });
+
+    expect(liked).toHaveLength(2);
+    expect(liked[0]?._id).toBe(tweetB);
+    expect(liked[1]?._id).toBe(tweetA);
+  });
+
+  it("includes author data with liked tweets", async () => {
+    const t = convexTest(schema, modules);
+    const authorId = await createUser(t, "author@example.com");
+    const likerId = await createUser(t, "liker@example.com");
+    const tweetId = await createTweet(t, authorId);
+    const asLiker = t.withIdentity({ subject: likerId });
+
+    await asLiker.mutation(api.likes.likeTweet, { tweetId });
+
+    const liked = await t.query(api.likes.getLikedTweets, { userId: likerId });
+
+    expect(liked).toHaveLength(1);
+    expect(liked[0]?.author?.username).toBe("author");
+    expect(typeof liked[0]?.likedAt).toBe("number");
+  });
+
+  it("filters out liked tweets that were deleted", async () => {
+    const t = convexTest(schema, modules);
+    const authorId = await createUser(t, "author@example.com");
+    const likerId = await createUser(t, "liker@example.com");
+    const tweetId = await createTweet(t, authorId);
+    const asLiker = t.withIdentity({ subject: likerId });
+
+    await asLiker.mutation(api.likes.likeTweet, { tweetId });
+    await t.run((ctx) => ctx.db.delete(tweetId));
+
+    const liked = await t.query(api.likes.getLikedTweets, { userId: likerId });
+
+    expect(liked).toEqual([]);
+  });
 });

@@ -1,6 +1,14 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
+
+const DEFAULT_LIKES_LIMIT = 50;
+
+type LikedTweet = Doc<"tweets"> & {
+  author: Doc<"users"> | null;
+  likedAt: number;
+};
 
 export const likeTweet = mutation({
   args: { tweetId: v.id("tweets") },
@@ -76,5 +84,31 @@ export const hasLiked = query({
       )
       .first();
     return Boolean(existing);
+  },
+});
+
+export const getLikedTweets = query({
+  args: { userId: v.id("users"), limit: v.optional(v.number()) },
+  handler: async (ctx, { userId, limit }) => {
+    const likes = await ctx.db
+      .query("likes")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(limit ?? DEFAULT_LIKES_LIMIT);
+
+    const tweetsWithAuthors = await Promise.all(
+      likes.map(async (like) => {
+        const tweet = await ctx.db.get(like.tweetId);
+        if (!tweet) {
+          return null;
+        }
+        const author = await ctx.db.get(tweet.userId);
+        return { ...tweet, author, likedAt: like.createdAt };
+      }),
+    );
+
+    return tweetsWithAuthors.filter(
+      (tweet): tweet is LikedTweet => tweet !== null,
+    );
   },
 });
