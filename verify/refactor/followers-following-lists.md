@@ -1,0 +1,2 @@
+- Followers/Following pages: keep the Back link aligned with the header and improve spacing between header and list.
+- `UserCard` in list views: keep Follow/Unfollow button width fixed to avoid layout shift.
