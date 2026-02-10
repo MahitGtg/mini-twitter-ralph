@@ -1,0 +1,3 @@
+- Tweet detail page: style the "← Back" link as a button with clearer affordance and hover state.
+- Tweet detail page: add spacing between the heading and tweet card to improve scanability.
+- Profile page: "Who to follow" section could use tighter alignment between avatar and text to reduce visual jitter.

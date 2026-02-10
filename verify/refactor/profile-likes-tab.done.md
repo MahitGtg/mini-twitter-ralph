@@ -1,0 +1,3 @@
+- Profile tabs: increase active tab contrast to make selection clearer.
+- Likes empty state: center message and add a short helper line (e.g., "Like tweets to see them here").
+- Tweet cards on profile tabs: tighten vertical spacing for denser scan.

@@ -1,0 +1,8 @@
+- `src/components/auth/SignInForm.tsx`: Reserve vertical space for the status/error line to avoid layout shift when the message appears.
+- `src/components/tweets/TweetComposer.tsx`: Align the remaining-count + status area so warning/status doesn't shift button alignment on toggle.
+- `src/components/user/ProfileHeader.tsx`: Style follow/unfollow confirmation text as a subtle badge to make it more legible without competing with the button.
+- `src/app/search/page.tsx` (via `src/components/user/UserCard.tsx`): made username/name text clickable so profile navigation is available from both avatar and text.
+- `src/app/page.tsx`: improved signed-out home state with clearer primary/secondary CTAs while keeping authenticated feed hidden when logged out.
+- `src/components/auth/SignUpForm.tsx`: added persistent helper copy describing password minimum length before submission.
+- `src/app/search/page.tsx`: add an explicit empty state for zero results and keep the query visible after search.
+- `src/components/user/ProfileHeader.tsx`: keep the follow confirmation message in a fixed-height slot to avoid layout shift.

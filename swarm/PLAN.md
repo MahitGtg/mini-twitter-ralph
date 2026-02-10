@@ -15,7 +15,7 @@
 - [x] Basic profile (username, bio, avatar)
 
 ### 2. Tweet Functionality
-- [x] Create tweet (280 char limit)
+- [x] Create tweet (300 char limit)
 - [x] View tweet feed (reverse chronological)
 - [x] Delete own tweets
 - [ ] Edit tweets (skip for MVP)
