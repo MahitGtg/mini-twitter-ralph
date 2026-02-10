@@ -63,7 +63,14 @@ export const deleteTweet = mutation({
 
 export const getTweetById = query({
   args: { tweetId: v.id("tweets") },
-  handler: async (ctx, { tweetId }) => ctx.db.get(tweetId),
+  handler: async (ctx, { tweetId }) => {
+    const tweet = await ctx.db.get(tweetId);
+    if (!tweet) {
+      return null;
+    }
+    const [withAuthor] = await addAuthors(ctx, [tweet]);
+    return withAuthor ?? null;
+  },
 });
 
 export const getUserTweets = query({

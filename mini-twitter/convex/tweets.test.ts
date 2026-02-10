@@ -64,6 +64,7 @@ describe("tweets", () => {
 
     expect(tweet?.content).toBe("Hello world");
     expect(tweet?.userId).toBe(userId);
+    expect(tweet?.author?._id).toBe(userId);
   });
 
   it("rejects deleteTweet for invalid ownership", async () => {

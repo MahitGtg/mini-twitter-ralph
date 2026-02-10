@@ -42,6 +42,7 @@ export default function TweetCard({
   const authorHandleClass = `text-xs text-slate-500${
     profileHref ? " group-hover:text-slate-700" : ""
   }`;
+  const tweetHref = `/tweet/${tweet._id}`;
 
   const handleToggleLike = async () => {
     if (isLiking || hasLiked === undefined) {
@@ -108,11 +109,19 @@ export default function TweetCard({
                 </div>
               )}
             </div>
-            <span className="text-xs text-slate-400">{relativeTime}</span>
+            <Link
+              href={tweetHref}
+              className="text-xs text-slate-400 transition hover:text-slate-600"
+            >
+              {relativeTime}
+            </Link>
           </div>
-          <p className="whitespace-pre-wrap text-sm text-slate-800">
+          <Link
+            href={tweetHref}
+            className="block whitespace-pre-wrap text-sm text-slate-800 transition hover:text-slate-900"
+          >
             {tweet.content}
-          </p>
+          </Link>
           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
             <button
               type="button"
