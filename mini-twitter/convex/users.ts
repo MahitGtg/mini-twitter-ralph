@@ -84,3 +84,50 @@ export const updateProfile = mutation({
     return ctx.db.get(userId);
   },
 });
+
+export const searchUsers = query({
+  args: {
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { query, limit }) => {
+    const searchTerm = query.trim().toLowerCase();
+    if (!searchTerm) {
+      return [];
+    }
+
+    const allUsers = await ctx.db.query("users").collect();
+    return allUsers
+      .filter(
+        (user) =>
+          user.username.toLowerCase().startsWith(searchTerm) ||
+          (user.name && user.name.toLowerCase().includes(searchTerm)),
+      )
+      .slice(0, limit ?? 10);
+  },
+});
+
+export const getSuggestedUsers = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return ctx.db
+        .query("users")
+        .order("desc")
+        .take(limit ?? 5);
+    }
+
+    const follows = await ctx.db
+      .query("follows")
+      .withIndex("by_followerId", (q) => q.eq("followerId", userId))
+      .collect();
+    const followingIds = new Set(follows.map((follow) => follow.followingId));
+    followingIds.add(userId);
+
+    const allUsers = await ctx.db.query("users").collect();
+    return allUsers
+      .filter((user) => !followingIds.has(user._id))
+      .slice(0, limit ?? 5);
+  },
+});

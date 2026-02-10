@@ -7,17 +7,26 @@ import { Doc } from "@/convex/_generated/dataModel";
 
 type UserCardProps = {
   user: Doc<"users">;
+  currentUserId?: Doc<"users">["_id"];
+  compact?: boolean;
 };
 
-export default function UserCard({ user }: UserCardProps) {
+export default function UserCard({ user, currentUserId, compact = false }: UserCardProps) {
   const isFollowing = useQuery(api.social.isFollowing, { userId: user._id });
   const follow = useMutation(api.social.follow);
   const unfollow = useMutation(api.social.unfollow);
-  const followers = useQuery(api.social.getFollowers, { userId: user._id });
-  const following = useQuery(api.social.getFollowing, { userId: user._id });
+  const followers = useQuery(
+    api.social.getFollowers,
+    compact ? "skip" : { userId: user._id },
+  );
+  const following = useQuery(
+    api.social.getFollowing,
+    compact ? "skip" : { userId: user._id },
+  );
 
   const followerCount = followers?.length ?? 0;
   const followingCount = following?.length ?? 0;
+  const showFollowButton = Boolean(currentUserId && currentUserId !== user._id);
 
   const handleToggleFollow = async () => {
     if (isFollowing) {
@@ -41,18 +50,22 @@ export default function UserCard({ user }: UserCardProps) {
             {user.name ?? user.username}
           </p>
           <p className="text-xs text-slate-500">@{user.username}</p>
-          <p className="mt-1 text-xs text-slate-500">
-            {followerCount} followers · {followingCount} following
-          </p>
+          {compact ? null : (
+            <p className="mt-1 text-xs text-slate-500">
+              {followerCount} followers · {followingCount} following
+            </p>
+          )}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={handleToggleFollow}
-        className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:border-slate-300"
-      >
-        {isFollowing ? "Unfollow" : "Follow"}
-      </button>
+      {showFollowButton ? (
+        <button
+          type="button"
+          onClick={handleToggleFollow}
+          className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:border-slate-300"
+        >
+          {isFollowing ? "Unfollow" : "Follow"}
+        </button>
+      ) : null}
     </div>
   );
 }

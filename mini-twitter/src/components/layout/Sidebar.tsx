@@ -23,6 +23,12 @@ export default function Sidebar() {
           >
             Home
           </Link>
+          <Link
+            href="/search"
+            className="rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Search
+          </Link>
           {isAuthenticated && user?.username ? (
             <Link
               href={`/profile/${user.username}`}

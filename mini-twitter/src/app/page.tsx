@@ -7,6 +7,7 @@ import SignInForm from "@/components/auth/SignInForm";
 import TweetComposer from "@/components/tweets/TweetComposer";
 import TweetFeed from "@/components/tweets/TweetFeed";
 import TweetSkeleton from "@/components/tweets/TweetSkeleton";
+import WhoToFollow from "@/components/user/WhoToFollow";
 
 function LoadingState() {
   return (
@@ -51,7 +52,7 @@ export default function Home() {
   }
 
   return (
-    <MainLayout>
+    <MainLayout rightRail={<WhoToFollow />}>
       <TweetComposer />
       <TweetFeed currentUserId={currentUser?._id} />
     </MainLayout>
