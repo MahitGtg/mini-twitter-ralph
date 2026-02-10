@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
@@ -31,6 +32,16 @@ export default function TweetCard({
 
   const authorName = author?.name || author?.username || "Unknown user";
   const authorHandle = author?.username ? `@${author.username}` : "unknown";
+  const profileHref = author?.username ? `/profile/${author.username}` : undefined;
+  const authorWrapperClass = profileHref
+    ? "group inline-flex flex-col"
+    : "flex flex-col";
+  const authorNameClass = `text-sm font-semibold text-slate-900${
+    profileHref ? " group-hover:underline" : ""
+  }`;
+  const authorHandleClass = `text-xs text-slate-500${
+    profileHref ? " group-hover:text-slate-700" : ""
+  }`;
 
   const handleToggleLike = async () => {
     if (isLiking || hasLiked === undefined) {
@@ -80,14 +91,22 @@ export default function TweetCard({
           name={author?.name}
           avatarUrl={author?.avatarUrl}
           size="md"
+          href={profileHref}
         />
         <div className="flex-1 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {authorName}
-              </p>
-              <p className="text-xs text-slate-500">{authorHandle}</p>
+              {profileHref ? (
+                <Link href={profileHref} className={authorWrapperClass}>
+                  <p className={authorNameClass}>{authorName}</p>
+                  <p className={authorHandleClass}>{authorHandle}</p>
+                </Link>
+              ) : (
+                <div className={authorWrapperClass}>
+                  <p className={authorNameClass}>{authorName}</p>
+                  <p className={authorHandleClass}>{authorHandle}</p>
+                </div>
+              )}
             </div>
             <span className="text-xs text-slate-400">{relativeTime}</span>
           </div>
