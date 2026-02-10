@@ -30,7 +30,7 @@ tasks:
       If no tasks are found - skip the "Execute the task" step and go to the "If nothing to do" step.
 
       # Implement the task
-      Then read the file and execute the task to completion, adding tests and testing when you think you need to.
+      Then read the file and execute the task to completion, adding tests and testing(write only backend tests) when you think you need to.
       When done, rename the file to ".completed.md" and add a note about what you did.
       If you can\'t complete the task, rename the file to ".pending.md" and add a note about what went wrong to the file.
 
@@ -93,11 +93,26 @@ tasks:
 
   tester:
     prompt-string: |
+      # Check and fix Node version
+      Before running tests, ensure correct Node version:
+      - Run `node -v` to check current version
+      - If version is < 20.9.0, try to switch:
+        * Run `source ~/.nvm/nvm.sh && nvm use 20` (loads nvm and switches)
+        * Or if .nvmrc doesn't exist, create it: `echo "20" > .nvmrc`
+        * Then run `nvm use`
+      - Verify the switch worked: `node -v` should show >= 20.9.0
+      
+      # Ensure test script exists
+      Check if package.json has a test script:
+      - Run `npm run test --if-present` or check package.json
+      - If missing, add a placeholder: `cd mini-twitter && npm pkg set scripts.test="echo 'No tests yet' && exit 0" && cd ..`
+
       # Run final tests
       Run the full test suite to make sure everything passes:
-      - Run `npm test` (or the appropriate test command for this project)
+      - Run `cd mini-twitter && npm test`
       - Run `npm run build` to verify the project compiles cleanly
-      - If there are linting scripts configured, run those too
+      - for frontend tests, call playwright-cli to run the tests
+      - If there are linting scripts configured, run those too (but warnings are ok, only errors should block)
 
       # Fix any failures
       If any tests fail or the build breaks:
@@ -111,7 +126,7 @@ tasks:
       - Run `git add -A` to stage all changes
       - Run `git diff --cached --stat` to review what will be committed
       - Write a concise, descriptive commit message summarizing the changes made in this iteration
-      - Run `git commit` with that message
+      - Run `git commit -m "your message here"`
       - Run `git push` to push the commit to the remote
 
       # If nothing to push
