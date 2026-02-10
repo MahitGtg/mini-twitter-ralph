@@ -6,6 +6,10 @@ function normalizeUsername(value: string) {
   return value.trim().toLowerCase();
 }
 
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
@@ -29,6 +33,20 @@ export const getUserByUsername = query({
     return ctx.db
       .query("users")
       .withIndex("by_username", (q) => q.eq("username", normalized))
+      .first();
+  },
+});
+
+export const getUserByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const normalized = normalizeEmail(email);
+    if (!normalized) {
+      return null;
+    }
+    return ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", normalized))
       .first();
   },
 });

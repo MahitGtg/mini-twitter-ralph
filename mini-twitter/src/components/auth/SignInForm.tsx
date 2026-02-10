@@ -6,21 +6,52 @@ import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 
 function getFriendlySignInError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return "Unable to sign in.";
-  }
-
-  const message = error.message.toLowerCase();
+  const message =
+    error instanceof Error
+      ? error.message.toLowerCase()
+      : typeof error === "string"
+        ? error.toLowerCase()
+        : JSON.stringify(error).toLowerCase();
   if (
     message.includes("invalidsecret") ||
     message.includes("invalid password") ||
     message.includes("invalid credentials") ||
-    message.includes("bad credentials")
+    message.includes("bad credentials") ||
+    message.includes("not found") ||
+    message.includes("user not found") ||
+    message.includes("no user") ||
+    message.includes("unable to sign in")
   ) {
     return "Invalid email or password.";
   }
 
-  return "Unable to sign in.";
+  return message.trim() ? "Invalid email or password." : "Unable to sign in.";
+}
+
+function getSignInFailureFromResult(result: unknown) {
+  if (!result || typeof result !== "object") {
+    return "";
+  }
+
+  const response = result as Record<string, unknown>;
+  const rawError =
+    response.error ??
+    response.message ??
+    (typeof response.details === "object" && response.details
+      ? (response.details as Record<string, unknown>).message
+      : undefined);
+
+  if (typeof rawError === "string" && rawError.trim()) {
+    return getFriendlySignInError(new Error(rawError));
+  }
+  if (rawError instanceof Error) {
+    return getFriendlySignInError(rawError);
+  }
+  if (response.success === false) {
+    return "Invalid email or password.";
+  }
+
+  return "";
 }
 
 export default function SignInForm() {
@@ -36,7 +67,12 @@ export default function SignInForm() {
     setStatus("");
     setIsSubmitting(true);
     try {
-      await signIn("password", { email, password, flow: "signIn" });
+      const response = await signIn("password", { email, password, flow: "signIn" });
+      const failure = getSignInFailureFromResult(response);
+      if (failure) {
+        setStatus(failure);
+        return;
+      }
       router.push("/");
     } catch (error) {
       setStatus(getFriendlySignInError(error));
@@ -76,7 +112,12 @@ export default function SignInForm() {
           className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-sky-400 focus:outline-none"
         />
       </div>
-      {status ? <p className="text-sm text-rose-500">{status}</p> : null}
+      <p
+        aria-live="polite"
+        className={`min-h-5 text-sm ${status ? "text-rose-500" : "text-transparent"}`}
+      >
+        {status || " "}
+      </p>
       <button
         type="submit"
         disabled={isSubmitting}

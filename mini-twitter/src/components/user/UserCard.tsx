@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import UserAvatar from "@/components/user/UserAvatar";
@@ -46,10 +47,17 @@ export default function UserCard({ user, currentUserId, compact = false }: UserC
           href={`/profile/${user.username}`}
         />
         <div>
-          <p className="text-sm font-semibold text-slate-900">
-            {user.name ?? user.username}
-          </p>
-          <p className="text-xs text-slate-500">@{user.username}</p>
+          <Link
+            href={`/profile/${user.username}`}
+            className="group inline-flex flex-col"
+          >
+            <p className="text-sm font-semibold text-slate-900 group-hover:underline">
+              {user.name ?? user.username}
+            </p>
+            <p className="text-xs text-slate-500 group-hover:text-slate-700">
+              @{user.username}
+            </p>
+          </Link>
           {compact ? null : (
             <p className="mt-1 text-xs text-slate-500">
               {followerCount} followers · {followingCount} following

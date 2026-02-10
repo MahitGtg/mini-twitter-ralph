@@ -20,6 +20,8 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
   const [bio, setBio] = useState(user.bio ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? "");
   const [status, setStatus] = useState("");
+  const [followStatus, setFollowStatus] = useState("");
+  const [isTogglingFollow, setIsTogglingFollow] = useState(false);
 
   const followers = useQuery(api.social.getFollowers, { userId: user._id });
   const following = useQuery(api.social.getFollowing, { userId: user._id });
@@ -34,10 +36,20 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
   const followingCount = following?.length ?? 0;
 
   const handleToggleFollow = async () => {
-    if (isFollowing) {
-      await unfollow({ userId: user._id });
-    } else {
-      await follow({ userId: user._id });
+    setFollowStatus("");
+    setIsTogglingFollow(true);
+    try {
+      if (isFollowing) {
+        await unfollow({ userId: user._id });
+        setFollowStatus(`Unfollowed @${user.username}.`);
+      } else {
+        await follow({ userId: user._id });
+        setFollowStatus(`Followed @${user.username}.`);
+      }
+    } catch {
+      setFollowStatus("Unable to update follow status.");
+    } finally {
+      setIsTogglingFollow(false);
     }
   };
 
@@ -109,11 +121,17 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
             <button
               type="button"
               onClick={handleToggleFollow}
+              disabled={isTogglingFollow}
               className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
-              {isFollowing ? "Unfollow" : "Follow"}
+              {isTogglingFollow ? "Updating..." : isFollowing ? "Unfollow" : "Follow"}
             </button>
           )}
+          {!isCurrentUser && followStatus ? (
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
+              {followStatus}
+            </span>
+          ) : null}
         </div>
       </div>
 

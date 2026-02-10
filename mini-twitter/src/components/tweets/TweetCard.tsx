@@ -12,16 +12,19 @@ interface TweetCardProps {
   tweet: Doc<"tweets">;
   author: Doc<"users"> | null;
   currentUserId?: Id<"users">;
+  onDeleted?: (tweetId: Id<"tweets">) => void;
 }
 
 export default function TweetCard({
   tweet,
   author,
   currentUserId,
+  onDeleted,
 }: TweetCardProps) {
   const [status, setStatus] = useState("");
   const [isLiking, setIsLiking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
   const likeCount = useQuery(api.likes.getTweetLikes, { tweetId: tweet._id });
   const hasLiked = useQuery(api.likes.hasLiked, { tweetId: tweet._id });
   const likeTweet = useMutation(api.likes.likeTweet);
@@ -67,14 +70,12 @@ export default function TweetCard({
     if (!isOwner || isDeleting) {
       return;
     }
-    const confirmed = window.confirm("Delete this tweet?");
-    if (!confirmed) {
-      return;
-    }
     setStatus("");
     setIsDeleting(true);
     try {
       await deleteTweet({ tweetId: tweet._id });
+      setIsDeleted(true);
+      onDeleted?.(tweet._id);
     } catch (error) {
       setStatus(
         error instanceof Error ? error.message : "Unable to delete tweet.",
@@ -83,6 +84,10 @@ export default function TweetCard({
       setIsDeleting(false);
     }
   };
+
+  if (isDeleted) {
+    return null;
+  }
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300">
@@ -135,6 +140,7 @@ export default function TweetCard({
               } ${isLiking ? "opacity-60" : ""}`}
             >
               <span>{hasLiked ? "Liked" : "Like"}</span>
+              <span aria-hidden="true"> </span>
               <span className="font-semibold text-slate-700">
                 {likeCount === undefined ? "..." : likeCount}
               </span>

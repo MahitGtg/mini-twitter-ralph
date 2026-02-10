@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -17,6 +18,9 @@ export default function TweetFeed({
   likedByUserId,
   currentUserId,
 }: TweetFeedProps) {
+  const [deletedTweetIds, setDeletedTweetIds] = useState<Set<Id<"tweets">>>(
+    () => new Set(),
+  );
   const isLikesView = Boolean(likedByUserId);
   const isUserView = Boolean(userId);
   const feedTweets = useQuery(
@@ -49,7 +53,9 @@ export default function TweetFeed({
     );
   }
 
-  if (tweets.length === 0) {
+  const visibleTweets = tweets.filter((tweet) => !deletedTweetIds.has(tweet._id));
+
+  if (visibleTweets.length === 0) {
     const emptyMessage = isLikesView
       ? "No liked tweets yet."
       : isUserView
@@ -64,12 +70,15 @@ export default function TweetFeed({
 
   return (
     <div className="space-y-4">
-      {tweets.map((tweet) => (
+      {visibleTweets.map((tweet) => (
         <TweetCard
           key={tweet._id}
           tweet={tweet}
           author={tweet.author ?? null}
           currentUserId={currentUserId}
+          onDeleted={(tweetId) => {
+            setDeletedTweetIds((previous) => new Set(previous).add(tweetId));
+          }}
         />
       ))}
     </div>
