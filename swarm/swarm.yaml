@@ -30,7 +30,8 @@ tasks:
       If no tasks are found - skip the "Execute the task" step and go to the "If nothing to do" step.
 
       # Implement the task
-      Then read the file and execute the task to completion, adding tests and testing when you think you need to.
+      Then read the file and execute the task to completion, adding tests and testing(write only backend tests) when you think you need to.
+      Aim for really good-looking, modern UI/UX: clear typography, consistent spacing, thoughtful hierarchy, polished components and interactions. Avoid generic or dated layouts; make it feel current and pleasant to use.
       When done, rename the file to ".completed.md" and add a note about what you did.
       If you can\'t complete the task, rename the file to ".pending.md" and add a note about what went wrong to the file.
 
@@ -93,17 +94,38 @@ tasks:
 
   tester:
     prompt-string: |
-      # Run final tests
-      Run the full test suite to make sure everything passes:
-      - Run `npm test` (or the appropriate test command for this project)
+      # Check and fix Node version
+      Before running tests, ensure correct Node version:
+      - Run `node -v` to check current version
+      - If version is < 20.9.0, try to switch:
+        * Run `source ~/.nvm/nvm.sh && nvm use 20` (loads nvm and switches)
+        * Or if .nvmrc doesn't exist, create it: `echo "20" > .nvmrc`
+        * Then run `nvm use`
+      - Verify the switch worked: `node -v` should show >= 20.9.0
+      
+      # Ensure test script exists
+      Check if package.json has a test script:
+      - Run `npm run test --if-present` or check package.json
+      - If missing, add a placeholder: `cd mini-twitter && npm pkg set scripts.test="echo 'No tests yet' && exit 0" && cd ..`
+
+      # Run backend tests and build
+      - Run `cd mini-twitter && npm run test:run` (or `npm test`)
       - Run `npm run build` to verify the project compiles cleanly
-      - If there are linting scripts configured, run those too
+      - If there are linting scripts configured, run those too (warnings ok, errors block)
+
+      # Run Playwright E2E (playwright-cli)
+      Use the browser like a user; click, fill forms, and assert outcomes. See AGENTS.md for playwright-cli.
+      - From repo root: ensure dev server is running. Start in background: `cd mini-twitter && npm run dev > /tmp/dev-server.log 2>&1 &` and `echo $! > /tmp/dev-server.pid`; wait ~15s; verify with `curl -f http://localhost:3000 || true`
+      - Start Playwright: `playwright-cli start` (headless). Create page: `PAGE_ID=$(playwright-cli new-page)`
+      - Run key flows with playwright-cli -e "..." --page $PAGE_ID: (1) Load homepage and check it renders; (2) Auth: go to signup/signin, fill form, submit, verify redirect or error; (3) Tweet: create a tweet, confirm it appears in feed; (4) Like/follow if visible. After each playwright-cli call, wait 2s before a screenshot: `playwright-cli -e "await page.waitForTimeout(2000)" --page $PAGE_ID`. Save screenshots to /tmp/ if needed.
+      - If a backend/Convex error appears, capture it (server logs or in-app red debug symbol bottom-left) and note the fix for the coder.
+      - Close page: `playwright-cli close-page $PAGE_ID`. Kill dev server: `kill $(cat /tmp/dev-server.pid) 2>/dev/null || true`; then `cd ..`
 
       # Fix any failures
-      If any tests fail or the build breaks:
+      If any tests fail, the build breaks, or a Playwright flow fails:
       - Read the error output carefully
       - Fix the issues directly in the code
-      - Re-run the failing tests to confirm the fix
+      - Re-run the failing tests or flows to confirm the fix
       - Repeat until everything passes
 
       # Push to git
