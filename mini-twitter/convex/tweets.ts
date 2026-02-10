@@ -1,8 +1,24 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 
 const DEFAULT_FEED_LIMIT = 50;
+
+type TweetWithAuthor<TTweet extends { userId: Id<"users"> }> = TTweet & {
+  author: Doc<"users"> | null;
+};
+
+const addAuthors = async <TTweet extends { userId: Id<"users"> }>(
+  ctx: { db: { get: (id: Id<"users">) => Promise<Doc<"users"> | null> } },
+  tweets: TTweet[],
+): Promise<Array<TweetWithAuthor<TTweet>>> =>
+  Promise.all(
+    tweets.map(async (tweet) => ({
+      ...tweet,
+      author: await ctx.db.get(tweet.userId),
+    })),
+  );
 
 export const createTweet = mutation({
   args: { content: v.string() },
@@ -53,11 +69,12 @@ export const getTweetById = query({
 export const getUserTweets = query({
   args: { userId: v.id("users"), limit: v.optional(v.number()) },
   handler: async (ctx, { userId, limit }) => {
-    return ctx.db
+    const tweets = await ctx.db
       .query("tweets")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit ?? DEFAULT_FEED_LIMIT);
+    return addAuthors(ctx, tweets);
   },
 });
 
@@ -81,6 +98,7 @@ export const getFeed = query({
       .withIndex("by_createdAt")
       .order("desc")
       .take(limit ?? DEFAULT_FEED_LIMIT);
-    return candidates.filter((tweet) => allowedIds.has(tweet.userId));
+    const tweets = candidates.filter((tweet) => allowedIds.has(tweet.userId));
+    return addAuthors(ctx, tweets);
   },
 });
