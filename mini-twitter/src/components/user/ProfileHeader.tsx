@@ -19,6 +19,7 @@ type ProfileHeaderProps = {
 export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState(user.name ?? "");
   const [username, setUsername] = useState(user.username);
   const [bio, setBio] = useState(user.bio ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? "");
@@ -72,6 +73,7 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
     setStatus("");
     try {
       const updated = await updateProfile({
+        name,
         username: username.trim(),
         bio,
         avatarUrl,
@@ -166,6 +168,14 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
       {isEditing ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-2 text-sm text-slate-600">
+            Display name
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-sky-400 focus:outline-none"
+            />
+          </label>
+          <label className="grid gap-2 text-sm text-slate-600">
             Username
             <input
               value={username}
@@ -173,7 +183,7 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
               className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-sky-400 focus:outline-none"
             />
           </label>
-          <label className="grid gap-2 text-sm text-slate-600">
+          <label className="grid gap-2 text-sm text-slate-600 sm:col-span-2">
             Avatar URL
             <input
               value={avatarUrl}

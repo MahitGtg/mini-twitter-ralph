@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import MainLayout from "@/components/layout/MainLayout";
 import TweetCard from "@/components/tweets/TweetCard";
 import TweetSkeleton from "@/components/tweets/TweetSkeleton";
 import UserCard from "@/components/user/UserCard";
 import WhoToFollow from "@/components/user/WhoToFollow";
 import { useDebounce } from "@/hooks/useDebounce";
+
+const PAGE_SIZE = 20;
 
 function SearchSkeleton() {
   return (
@@ -47,6 +50,88 @@ function EmptyState({ icon, title, description, helper }: EmptyStateProps) {
   );
 }
 
+type TweetSearchResultsProps = {
+  query: string;
+  currentUserId?: Id<"users">;
+};
+
+function TweetSearchResults({ query, currentUserId }: TweetSearchResultsProps) {
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.tweets.searchTweetsPaginated,
+    { query },
+    { initialNumItems: PAGE_SIZE },
+  );
+  const tweets = results ?? [];
+  const isLoading = status === "LoadingFirstPage";
+  const isLoadingMore = status === "LoadingMore";
+  const canLoadMore = status === "CanLoadMore";
+  const isExhausted = status === "Exhausted";
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <TweetSkeleton />
+        <TweetSkeleton />
+        <TweetSkeleton />
+      </div>
+    );
+  }
+
+  if (tweets.length === 0 && isExhausted) {
+    return (
+      <EmptyState
+        icon="#"
+        title="No tweets found"
+        description={
+          <>
+            Nothing matched{" "}
+            <span className="font-medium text-slate-700">
+              &quot;{query}&quot;
+            </span>
+            .
+          </>
+        }
+        helper="Try a different phrase or check spelling."
+      />
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-sm font-medium text-slate-500">
+        {formatCountLabel(tweets.length, "tweet")}
+      </h2>
+      <div className="space-y-4">
+        {tweets.map((tweet) => (
+          <TweetCard
+            key={tweet._id}
+            tweet={tweet}
+            author={tweet.author ?? null}
+            currentUserId={currentUserId}
+          />
+        ))}
+      </div>
+      <div className="flex flex-col items-center gap-2 pt-1">
+        {canLoadMore && (
+          <button
+            type="button"
+            onClick={() => loadMore(PAGE_SIZE)}
+            disabled={isLoadingMore}
+            className="rounded-full border border-sky-200 bg-sky-50 px-6 py-2 text-sm font-medium text-sky-600 transition hover:bg-sky-100 disabled:opacity-60"
+          >
+            {isLoadingMore ? "Loading..." : "Load more tweets"}
+          </button>
+        )}
+        {isExhausted && tweets.length > 0 && (
+          <p className="text-center text-sm text-slate-400">
+            You&apos;ve reached the end
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function SearchPage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchMode, setSearchMode] = useState<"users" | "tweets">("users");
@@ -58,10 +143,6 @@ export default function SearchPage() {
   const userResults = useQuery(
     api.users.searchUsers,
     isUsersMode && debouncedSearch ? { query: debouncedSearch } : "skip",
-  );
-  const tweetResults = useQuery(
-    api.tweets.searchTweets,
-    isTweetsMode && debouncedSearch ? { query: debouncedSearch } : "skip",
   );
 
   return (
@@ -151,43 +232,11 @@ export default function SearchPage() {
               </div>
             </section>
           )
-        ) : tweetResults === undefined ? (
-          <div className="space-y-3">
-            <TweetSkeleton />
-            <TweetSkeleton />
-            <TweetSkeleton />
-          </div>
-        ) : tweetResults.length === 0 ? (
-          <EmptyState
-            icon="#"
-            title="No tweets found"
-            description={
-              <>
-                Nothing matched{" "}
-                <span className="font-medium text-slate-700">
-                  &quot;{debouncedSearch}&quot;
-                </span>
-                .
-              </>
-            }
-            helper="Try a different phrase or check spelling."
-          />
         ) : (
-          <section className="space-y-4">
-            <h2 className="text-sm font-medium text-slate-500">
-              {formatCountLabel(tweetResults.length, "tweet")}
-            </h2>
-            <div className="space-y-4">
-              {tweetResults.map((tweet) => (
-                <TweetCard
-                  key={tweet._id}
-                  tweet={tweet}
-                  author={tweet.author ?? null}
-                  currentUserId={currentUser?._id}
-                />
-              ))}
-            </div>
-          </section>
+          <TweetSearchResults
+            query={debouncedSearch}
+            currentUserId={currentUser?._id}
+          />
         )}
       </div>
     </MainLayout>

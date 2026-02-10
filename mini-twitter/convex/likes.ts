@@ -1,13 +1,41 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { paginationOptsValidator, type PaginationResult } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 
 const DEFAULT_LIKES_LIMIT = 50;
 
 type LikedTweet = Doc<"tweets"> & {
   author: Doc<"users"> | null;
   likedAt: number;
+};
+
+type LikesDbCtx = {
+  db: {
+    get(id: Id<"tweets">): Promise<Doc<"tweets"> | null>;
+    get(id: Id<"users">): Promise<Doc<"users"> | null>;
+  };
+};
+
+const buildLikedTweets = async (
+  ctx: LikesDbCtx,
+  likes: Array<Doc<"likes">>,
+): Promise<LikedTweet[]> => {
+  const tweetsWithAuthors = await Promise.all(
+    likes.map(async (like) => {
+      const tweet = await ctx.db.get(like.tweetId);
+      if (!tweet) {
+        return null;
+      }
+      const author = await ctx.db.get(tweet.userId);
+      return { ...tweet, author, likedAt: like.createdAt };
+    }),
+  );
+
+  return tweetsWithAuthors.filter(
+    (tweet): tweet is LikedTweet => tweet !== null,
+  );
 };
 
 export const likeTweet = mutation({
@@ -96,19 +124,26 @@ export const getLikedTweets = query({
       .order("desc")
       .take(limit ?? DEFAULT_LIKES_LIMIT);
 
-    const tweetsWithAuthors = await Promise.all(
-      likes.map(async (like) => {
-        const tweet = await ctx.db.get(like.tweetId);
-        if (!tweet) {
-          return null;
-        }
-        const author = await ctx.db.get(tweet.userId);
-        return { ...tweet, author, likedAt: like.createdAt };
-      }),
-    );
+    return buildLikedTweets(ctx, likes);
+  },
+});
 
-    return tweetsWithAuthors.filter(
-      (tweet): tweet is LikedTweet => tweet !== null,
-    );
+export const getLikedTweetsPaginated = query({
+  args: { userId: v.id("users"), paginationOpts: paginationOptsValidator },
+  handler: async (
+    ctx,
+    { userId, paginationOpts },
+  ): Promise<PaginationResult<LikedTweet>> => {
+    const likesResult = await ctx.db
+      .query("likes")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .order("desc")
+      .paginate(paginationOpts);
+
+    return {
+      page: await buildLikedTweets(ctx, likesResult.page),
+      isDone: likesResult.isDone,
+      continueCursor: likesResult.continueCursor,
+    };
   },
 });

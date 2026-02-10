@@ -19,12 +19,13 @@ const createUser = async (t: ReturnType<typeof convexTest>, email: string) =>
 const createTweet = async (
   t: ReturnType<typeof convexTest>,
   userId: Id<"users">,
+  createdAt?: number,
 ) =>
   t.run((ctx) =>
     ctx.db.insert("tweets", {
       userId,
       content: "Hello",
-      createdAt: Date.now(),
+      createdAt: createdAt ?? Date.now(),
     }),
   );
 
@@ -183,5 +184,52 @@ describe("likes", () => {
     const liked = await t.query(api.likes.getLikedTweets, { userId: likerId });
 
     expect(liked).toEqual([]);
+  });
+
+  it("paginates liked tweets in reverse chronological order", async () => {
+    const t = convexTest(schema, modules);
+    const authorId = await createUser(t, "author@example.com");
+    const likerId = await createUser(t, "liker@example.com");
+    const tweetA = await createTweet(t, authorId, 1);
+    const tweetB = await createTweet(t, authorId, 2);
+    const tweetC = await createTweet(t, authorId, 3);
+    await t.run((ctx) =>
+      ctx.db.insert("likes", {
+        userId: likerId,
+        tweetId: tweetA,
+        createdAt: 100,
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("likes", {
+        userId: likerId,
+        tweetId: tweetB,
+        createdAt: 200,
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("likes", {
+        userId: likerId,
+        tweetId: tweetC,
+        createdAt: 300,
+      }),
+    );
+
+    const firstPage = await t.query(api.likes.getLikedTweetsPaginated, {
+      userId: likerId,
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+    const secondPage = await t.query(api.likes.getLikedTweetsPaginated, {
+      userId: likerId,
+      paginationOpts: { numItems: 2, cursor: firstPage.continueCursor },
+    });
+
+    expect(firstPage.page).toHaveLength(2);
+    expect(firstPage.isDone).toBe(false);
+    expect(firstPage.page[0]?.likedAt).toBeGreaterThan(
+      firstPage.page[1]?.likedAt ?? 0,
+    );
+    expect(secondPage.page).toHaveLength(1);
+    expect(secondPage.isDone).toBe(true);
   });
 });

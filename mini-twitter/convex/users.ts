@@ -54,6 +54,7 @@ export const getUserByEmail = query({
 export const updateProfile = mutation({
   args: {
     username: v.optional(v.string()),
+    name: v.optional(v.string()),
     bio: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
   },
@@ -65,6 +66,7 @@ export const updateProfile = mutation({
 
     const updates: {
       username?: string;
+      name?: string;
       bio?: string;
       avatarUrl?: string;
       image?: string;
@@ -83,6 +85,10 @@ export const updateProfile = mutation({
         throw new Error("Username is already taken");
       }
       updates.username = normalized;
+    }
+
+    if (args.name !== undefined) {
+      updates.name = args.name.trim() || undefined;
     }
 
     if (args.bio !== undefined) {
