@@ -73,6 +73,17 @@ export const getTweetById = query({
   },
 });
 
+export const getUserTweetCount = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const tweets = await ctx.db
+      .query("tweets")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    return tweets.length;
+  },
+});
+
 export const getUserTweets = query({
   args: { userId: v.id("users"), limit: v.optional(v.number()) },
   handler: async (ctx, { userId, limit }) => {

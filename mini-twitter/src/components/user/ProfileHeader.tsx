@@ -24,6 +24,7 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
   const followers = useQuery(api.social.getFollowers, { userId: user._id });
   const following = useQuery(api.social.getFollowing, { userId: user._id });
   const isFollowing = useQuery(api.social.isFollowing, { userId: user._id });
+  const tweetCount = useQuery(api.tweets.getUserTweetCount, { userId: user._id });
 
   const updateProfile = useMutation(api.users.updateProfile);
   const follow = useMutation(api.social.follow);
@@ -77,6 +78,8 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
             <p className="text-sm text-slate-500">@{user.username}</p>
             <p className="mt-2 text-sm text-slate-600">{user.bio}</p>
             <p className="mt-2 text-xs text-slate-500">
+              <span>{tweetCount ?? 0} tweets</span>
+              {" · "}
               <Link
                 href={`/profile/${user.username}/followers`}
                 className="hover:underline"
