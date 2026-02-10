@@ -38,7 +38,7 @@ tasks:
       If there are no pending tasks found, your job is to test the feature and report any issues.
       Then write those issues as new pending tasks in the swarm/todo/{feature-name}/ folder.
       When you have done that exit immediately!
-    model: codex-5.3
+    model: gpt-5.2-codex
     depends_on: [planner]
 
   refactor:
@@ -62,7 +62,7 @@ tasks:
 
       # If nothing to refactor
       If the unstaged changes look clean, exit immediately.
-    model: codex
+    model: gpt-5.2-codex
     depends_on: [coder]
 
   checker:
@@ -88,7 +88,7 @@ tasks:
 
       # If no bugs found
       If the unstaged changes look correct, exit immediately.
-    model: codex
+    model: gpt-5.2-codex
     depends_on: [refactor]
 
   tester:
@@ -116,7 +116,7 @@ tasks:
 
       # If nothing to push
       If there are no unstaged or staged changes (nothing was modified in this iteration), exit immediately.
-    model: codex
+    model: gpt-5.2-codex
     depends_on: [checker]
 
 pipelines:
