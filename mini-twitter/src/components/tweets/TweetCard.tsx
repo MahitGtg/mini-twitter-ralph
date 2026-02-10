@@ -1,12 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
+import { useRouter } from "next/navigation";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import UserAvatar from "@/components/user/UserAvatar";
 import { useRelativeTime } from "@/hooks/useRelativeTime";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import RetryableError from "@/components/ui/RetryableError";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useRetryableMutation } from "@/hooks/useRetryableMutation";
+import TweetContent from "@/components/tweets/TweetContent";
+import { useToast } from "@/hooks/useToast";
 
 interface TweetCardProps {
   tweet: Doc<"tweets">;
@@ -21,17 +29,32 @@ export default function TweetCard({
   currentUserId,
   onDeleted,
 }: TweetCardProps) {
-  const [status, setStatus] = useState("");
-  const [isLiking, setIsLiking] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const router = useRouter();
   const likeCount = useQuery(api.likes.getTweetLikes, { tweetId: tweet._id });
   const hasLiked = useQuery(api.likes.hasLiked, { tweetId: tweet._id });
-  const likeTweet = useMutation(api.likes.likeTweet);
-  const unlikeTweet = useMutation(api.likes.unlikeTweet);
-  const deleteTweet = useMutation(api.tweets.deleteTweet);
+  const likeTweet = useRetryableMutation(api.likes.likeTweet);
+  const unlikeTweet = useRetryableMutation(api.likes.unlikeTweet);
+  const deleteTweet = useRetryableMutation(api.tweets.deleteTweet);
   const relativeTime = useRelativeTime(tweet.createdAt);
+  const { copied: hasCopied, copy } = useCopyToClipboard();
+  const { toast } = useToast();
   const isOwner = Boolean(currentUserId && tweet.userId === currentUserId);
+  const isLiking = likeTweet.isLoading || unlikeTweet.isLoading;
+  const isDeleting = deleteTweet.isLoading;
+  const deleteError = deleteTweet.error;
+  const likeError = likeTweet.error;
+  const unlikeError = unlikeTweet.error;
+  const retryTargets = [
+    { error: deleteError, retry: deleteTweet.retry, label: "Retry delete" },
+    { error: likeError, retry: likeTweet.retry, label: "Retry like" },
+    { error: unlikeError, retry: unlikeTweet.retry, label: "Retry unlike" },
+  ];
+  const activeRetry = retryTargets.find((target) => target.error);
+  const actionError = activeRetry?.error;
+  const retryHandler = activeRetry?.retry;
+  const retryLabel = activeRetry?.label ?? "Retry";
 
   const authorName = author?.name || author?.username || "Unknown user";
   const authorHandle = author?.username ? `@${author.username}` : "unknown";
@@ -47,22 +70,26 @@ export default function TweetCard({
   }`;
   const tweetHref = `/tweet/${tweet._id}`;
 
+  const navigateToTweet = () => {
+    router.push(tweetHref);
+  };
+
   const handleToggleLike = async () => {
     if (isLiking || hasLiked === undefined) {
       return;
     }
-    setStatus("");
-    setIsLiking(true);
+    likeTweet.clearError();
+    unlikeTweet.clearError();
+    deleteTweet.clearError();
     try {
       if (hasLiked) {
-        await unlikeTweet({ tweetId: tweet._id });
+        await unlikeTweet.execute({ tweetId: tweet._id });
+        toast.success("Removed like.");
       } else {
-        await likeTweet({ tweetId: tweet._id });
+        await likeTweet.execute({ tweetId: tweet._id });
+        toast.success("Liked tweet.");
       }
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to update like.");
-    } finally {
-      setIsLiking(false);
+    } catch {
     }
   };
 
@@ -70,18 +97,29 @@ export default function TweetCard({
     if (!isOwner || isDeleting) {
       return;
     }
-    setStatus("");
-    setIsDeleting(true);
+    deleteTweet.clearError();
     try {
-      await deleteTweet({ tweetId: tweet._id });
+      await deleteTweet.execute({ tweetId: tweet._id });
       setIsDeleted(true);
       onDeleted?.(tweet._id);
-    } catch (error) {
-      setStatus(
-        error instanceof Error ? error.message : "Unable to delete tweet.",
-      );
-    } finally {
-      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+      toast.success("Tweet deleted.");
+    } catch {
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    await copy(`${window.location.origin}${tweetHref}`);
+  };
+
+  const handleContentKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      navigateToTweet();
     }
   };
 
@@ -90,8 +128,8 @@ export default function TweetCard({
   }
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300">
-      <div className="flex gap-4">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 sm:p-6">
+      <div className="flex gap-3 sm:gap-4">
         <UserAvatar
           username={author?.username}
           name={author?.name}
@@ -99,7 +137,7 @@ export default function TweetCard({
           size="md"
           href={profileHref}
         />
-        <div className="flex-1 space-y-3">
+        <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               {profileHref ? (
@@ -121,19 +159,22 @@ export default function TweetCard({
               {relativeTime}
             </Link>
           </div>
-          <Link
-            href={tweetHref}
-            className="block whitespace-pre-wrap text-sm text-slate-800 transition hover:text-slate-900"
+          <div
+            role="link"
+            tabIndex={0}
+            onClick={navigateToTweet}
+            onKeyDown={handleContentKeyDown}
+            className="block break-words whitespace-pre-wrap text-sm text-slate-800 transition hover:text-slate-900"
           >
-            {tweet.content}
-          </Link>
+            <TweetContent content={tweet.content} />
+          </div>
           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
             <button
               type="button"
               onClick={handleToggleLike}
               disabled={isLiking || hasLiked === undefined}
               aria-pressed={Boolean(hasLiked)}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 transition ${
+              className={`inline-flex items-center gap-1 rounded-full border px-3 py-2 transition ${
                 hasLiked
                   ? "border-transparent bg-sky-50 text-[#1DA1F2]"
                   : "border-slate-200 hover:border-slate-300 hover:text-slate-700"
@@ -145,20 +186,49 @@ export default function TweetCard({
                 {likeCount === undefined ? "..." : likeCount}
               </span>
             </button>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className={`inline-flex items-center gap-1 rounded-full border px-3 py-2 transition ${
+                hasCopied
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                  : "border-slate-200 hover:border-slate-300 hover:text-slate-700"
+              }`}
+            >
+              {hasCopied ? "Copied!" : "Copy Link"}
+            </button>
             {isOwner ? (
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting}
-                className="inline-flex items-center gap-1 rounded-full border border-rose-200 px-3 py-1 text-rose-500 transition hover:border-rose-300 hover:text-rose-600 disabled:opacity-60"
+                className="inline-flex items-center gap-1 rounded-full border border-rose-200 px-3 py-2 text-rose-500 transition hover:border-rose-300 hover:text-rose-600 disabled:opacity-60"
               >
-                {isDeleting ? "Deleting..." : "Delete"}
+                Delete
               </button>
             ) : null}
-            {status ? <span className="text-rose-500">{status}</span> : null}
           </div>
+          {actionError ? (
+            <RetryableError
+              error={actionError}
+              onRetry={retryHandler}
+              retryLabel={retryLabel}
+              variant="inline"
+            />
+          ) : null}
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Tweet?"
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </article>
   );
 }

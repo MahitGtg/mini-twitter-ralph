@@ -18,7 +18,7 @@ export default function AuthButton() {
     return (
       <Link
         href="/auth/signin"
-        className="rounded-full bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600"
+        className="w-full rounded-full bg-sky-500 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-sky-600 sm:w-auto"
       >
         Sign in
       </Link>
@@ -26,8 +26,8 @@ export default function AuthButton() {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm font-semibold text-slate-700">
+    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+      <span className="max-w-[160px] truncate text-sm font-semibold text-slate-700">
         {user?.username ?? "Account"}
       </span>
       <button

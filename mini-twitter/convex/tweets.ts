@@ -120,3 +120,26 @@ export const getFeed = query({
     return addAuthors(ctx, tweets);
   },
 });
+
+export const searchTweets = query({
+  args: { query: v.string() },
+  handler: async (ctx, { query }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+    const searchLower = query.toLowerCase().trim();
+    if (!searchLower) {
+      return [];
+    }
+    const candidates = await ctx.db
+      .query("tweets")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(200);
+    const matches = candidates
+      .filter((tweet) => tweet.content.toLowerCase().includes(searchLower))
+      .slice(0, 50);
+    return addAuthors(ctx, matches);
+  },
+});

@@ -1,0 +1,10 @@
+Refactor notes:
+- Simplified retry selection in TweetCard/ProfileHeader with retry target arrays.
+- Removed empty finally blocks in TweetCard, ProfileHeader, TweetComposer.
+
+Iteration 2 agent 84b08667:
+- Node switched to v20.19.5 via nvm.
+- Tests: `npm run test:run` passed (46 tests).
+- Build: `npm run build` passed.
+- Lint: warnings only (unused eslint-disable in Convex generated files, `next/no-img-element` in UserAvatar).
+- Playwright E2E/dev server not run due to policy against long-lived processes.

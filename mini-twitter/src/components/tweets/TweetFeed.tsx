@@ -6,6 +6,8 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import TweetCard from "@/components/tweets/TweetCard";
 import TweetSkeleton from "@/components/tweets/TweetSkeleton";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import RetryableError from "@/components/ui/RetryableError";
 
 interface TweetFeedProps {
   userId?: Id<"users">;
@@ -14,6 +16,35 @@ interface TweetFeedProps {
 }
 
 export default function TweetFeed({
+  userId,
+  likedByUserId,
+  currentUserId,
+}: TweetFeedProps) {
+  const [retryKey, setRetryKey] = useState(0);
+
+  return (
+    <ErrorBoundary
+      resetKey={retryKey}
+      onRetry={() => setRetryKey((prev) => prev + 1)}
+      fallback={(error, reset) => (
+        <RetryableError
+          error={error}
+          onRetry={reset}
+          retryLabel="Reload feed"
+        />
+      )}
+    >
+      <TweetFeedContent
+        key={retryKey}
+        userId={userId}
+        likedByUserId={likedByUserId}
+        currentUserId={currentUserId}
+      />
+    </ErrorBoundary>
+  );
+}
+
+function TweetFeedContent({
   userId,
   likedByUserId,
   currentUserId,
