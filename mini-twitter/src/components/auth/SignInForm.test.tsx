@@ -72,7 +72,9 @@ describe("SignInForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() =>
-      expect(screen.getByText("Bad credentials")).toBeInTheDocument(),
+      expect(
+        screen.getByText("Invalid email or password."),
+      ).toBeInTheDocument(),
     );
   });
 });

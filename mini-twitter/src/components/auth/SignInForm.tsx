@@ -5,6 +5,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 
+function getFriendlySignInError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Unable to sign in.";
+  }
+
+  const message = error.message.toLowerCase();
+  if (
+    message.includes("invalidsecret") ||
+    message.includes("invalid password") ||
+    message.includes("invalid credentials") ||
+    message.includes("bad credentials")
+  ) {
+    return "Invalid email or password.";
+  }
+
+  return "Unable to sign in.";
+}
+
 export default function SignInForm() {
   const router = useRouter();
   const { signIn } = useAuthActions();
@@ -21,9 +39,7 @@ export default function SignInForm() {
       await signIn("password", { email, password, flow: "signIn" });
       router.push("/");
     } catch (error) {
-      setStatus(
-        error instanceof Error ? error.message : "Unable to sign in.",
-      );
+      setStatus(getFriendlySignInError(error));
     } finally {
       setIsSubmitting(false);
     }

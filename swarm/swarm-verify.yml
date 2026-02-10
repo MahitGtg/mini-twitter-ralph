@@ -1,0 +1,195 @@
+# Verification swarm: test existing features, report bugs, fix and refactor.
+# Does NOT add new features. Backend tests (existing or new) + Playwright only.
+# No frontend unit tests.
+#
+# Run: swarm run swarm-verify.yml --pipeline verify
+# Or with more iterations: swarm run swarm-verify.yml --pipeline verify --iterations 10
+
+version: "1"
+
+tasks:
+  verify-planner:
+    prompt-string: |
+      # Role
+      Pick exactly one completed todo item (earliest created first) that has not been verified yet. Plan verification for all features in that todo. You do not add new product features.
+
+      # Completed todos (feature tasks, not verify tasks)
+      - List swarm/todo/*.completed.md but exclude verify-*.completed.md. These are completed feature tasks (e.g. auth-page-routes.completed.md, user-search-feature.completed.md).
+      - Determine creation order: earliest created first (e.g. ls -tr swarm/todo/*.completed.md or stat, excluding verify-*).
+      - Already verified: a todo is verified if swarm/todo/verify-{basename}.completed.md exists or swarm/todo/{basename}.verified.md exists. Skip those.
+
+      # Pick one unverified todo (earliest first)
+      From the list of completed todos, pick the earliest-created one that is not yet verified. Its basename is {todo-name} (e.g. auth-page-routes, user-search-feature). Only one todo per run.
+
+      # If a verify task for that todo already exists (verify-{todo-name}.pending.md or .processing.md)
+      - Read it and verify/verify-report.md if present
+      - If the last run had failures or refactor items: update the plan with refined "Playwright flows" or "Backend focus"
+      - Exit immediately after updating
+
+      # Read the completed todo
+      Open swarm/todo/{todo-name}.completed.md and read what features/work it describes. This run will verify all of those features in one verification plan.
+
+      # Write one verification task
+      Create exactly one file: swarm/todo/verify-{todo-name}.pending.md
+      Example: verify-auth-page-routes.pending.md, verify-user-search-feature.pending.md
+
+      Use this structure (cover all features in that completed todo):
+
+      ```markdown
+      # Verification Plan: [Todo name] (from {todo-name}.completed.md)
+
+      ## Todo under test
+      [Full name and summary of the completed todo — all features in it]
+
+      ## Backend tests
+      - Run: cd mini-twitter && npm run test:run
+      - This run verifies the work from {todo-name}.completed.md; list which convex/*.test.ts files apply. Run full suite.
+      - Do not add or run frontend unit tests (no Vitest in src/)
+
+      ## Playwright E2E flows (all features in this todo)
+      - Use playwright-cli (headless). See AGENTS.md.
+      - List flows for every feature: for each, include (1) happy path: click, fill forms, submit, verify backend effect (e.g. tweet in feed, like count); (2) edge cases: invalid/empty input, wrong password, over limit, etc. Tester must actually interact like a user and assert outcomes, not only check that UI rendered.
+      - Screenshots: verify/screenshots/; report: verify/verify-report.md
+
+      ## Success criteria
+      - Backend passes; all listed E2E flows pass; failures and refactor notes go to coder. When done, mark this todo as verified.
+
+      ## Out of scope
+      - No new product features; no frontend unit tests.
+      ```
+
+      # Exit condition
+      After you have written a single verification plan for one completed todo — exit immediately. Do not create more than one verify-*.pending.md per run.
+    model: opus-4.6-thinking
+
+  tester:
+    prompt-string: |
+      # Find one verify task
+      Look for a single file: swarm/todo/verify-*.pending.md (e.g. verify-auth.pending.md, verify-tweets.pending.md). Pick one if several exist.
+
+      If not found, exit immediately.
+
+      If found:
+      - Claim it: rename to verify-{todo-name}.{SWARM_TASK_ID}.processing.md (keep the same todo name, e.g. verify-auth-page-routes.abc123.processing.md)
+      - Read the verification plan — it describes one completed todo and all features in it (backend + Playwright flows for those features)
+
+      # Node version
+      - Check node -v; if < 20.9.0 run: source ~/.nvm/nvm.sh && nvm use 20
+
+      # 1. Backend tests
+      - cd mini-twitter
+      - Run: npm run test:run
+      - If the plan lists "Backend gaps", consider adding a single minimal test in convex/*.test.ts only if it's clearly missing; do not add frontend tests
+      - Record backend result: PASS or FAIL and paste any failure output
+
+      # 2. Playwright E2E — use the browser like a normal human
+      - Start dev server in background: npm run dev > /tmp/dev-server.log 2>&1 &; echo $! > /tmp/dev-server.pid
+      - Wait: sleep 15
+      - Verify: curl -f http://localhost:3001 || true
+      - Start Playwright: playwright-cli start
+      - Create page: PAGE_ID=$(playwright-cli new-page)
+
+      ## How to test (not just "does it render")
+      - **Click and fill like a user**: Actually click buttons, links, and inputs; type into form fields; submit forms. Do not only check that elements exist or that the UI rendered.
+      - **Exercise the backend**: Every flow must trigger real actions — signup/login (hit auth), create a tweet (hit Convex), like/follow (hit backend), search (hit API). Verify that data changes: e.g. tweet appears in feed after submit, like count updates, profile shows correct counts.
+      - **Edge cases**: For each flow, test edge cases and invalid inputs, e.g.:
+        - Auth: wrong password, empty email, invalid email format, very long password
+        - Tweet: empty content, over character limit, special characters
+        - Forms: submit with missing required fields, then with valid data
+        - Buttons: double-click submit, click when disabled
+      - **Assert outcomes**: After each action, assert that the app state or UI reflects the action (e.g. redirect after login, new tweet in list, error message for invalid input). Use waitForSelector or waitForResponse if needed.
+
+      - Run all Playwright flows listed in the plan. For each flow: navigate, waitForLoadState, then click/fill/submit as a user would; run happy path and at least one or two edge cases per flow; take screenshots to verify/screenshots/
+      - Record each flow (and key edge cases): PASS or FAIL and any errors
+      - While testing, observe the UI: note areas that could be refactored or improved (spacing, hierarchy, typography, buttons, consistency). Note which page/component and what to improve.
+      - Close page: playwright-cli close-page $PAGE_ID
+      - Kill dev server: kill $(cat /tmp/dev-server.pid) 2>/dev/null || true
+      - cd ..
+
+      # 3. Report
+      Ensure folder exists: mkdir -p verify verify/screenshots verify/refactor
+      Write: verify/verify-report.md
+      Save Playwright screenshots to verify/screenshots/ (not /tmp/)
+
+      Include in report:
+      - Todo under test: [todo name from the plan, e.g. auth-page-routes]
+      - Backend: PASS/FAIL and failure log if any
+      - Per-flow Playwright: PASS/FAIL for happy path and for each edge case tried (e.g. "Auth happy path: PASS; wrong password: PASS; empty email: FAIL"). Error messages and screenshot paths (verify/screenshots/)
+      - Summary: total passed/failed (flows + edge cases)
+      - "Bugs for coder": list each failure with what broke, expected vs actual, and file/area to fix if known
+      - "Refactor / UI-UX for coder": list concrete improvements (page/component + what to change). Also write these to verify/refactor/{todo-name}.md so the coder can pick them up in a later run even after this verify task is completed.
+
+      # 4. Write refactor items to refactor folder
+      If you have any refactor items, write them to verify/refactor/{todo-name}.md (one file per todo). Format: same bullet list — page/component and what to change. This way refactoring does not block marking the verify task complete.
+
+      # 5. Update task for coder (bugs only)
+      - Rename back to: verify-{todo-name}.pending.md (same name as before claim)
+      - Append to the task file:
+
+      ```markdown
+      ## Last run (verify-report)
+      - Report: verify/verify-report.md
+      - Todo: [todo name]
+      - Backend: [PASS/FAIL]
+      - E2E: [list flows and PASS/FAIL]
+      - Bugs for coder: [copy from report]
+      - Refactor items (if any): verify/refactor/{todo-name}.md
+      ```
+
+      # 6. Complete verify task when tests pass (refactor items do not block)
+      If everything passed (backend + all E2E flows):
+      - Rename to verify-{todo-name}.completed.md and add a one-line summary
+      - Mark the original todo as verified: create swarm/todo/{todo-name}.verified.md with one line "Verified by verify-{todo-name}.completed.md"
+      - Commit and push : run `git add -A`, `git diff --cached --stat` to review, then write a concise commit message (e.g. "verify: {todo-name} passed") and run `git commit -m "your message"` and `git push`. If there are no changes to commit, skip this.
+      So the planner can pick the next unverified todo next iteration; the coder will still get refactor work from verify/refactor/*.md.
+      If any test failed, leave as .pending.md so the coder fixes bugs. Then exit.
+
+      Exit after writing the report, refactor file (if any), updating the task, and committing when completed.
+    model: gpt-5.2-codex
+    depends_on: [verify-planner]
+
+  coder:
+    prompt-string: |
+      # Role
+      Fix all bugs from the verify report and apply all refactors from the refactor folder. Do not add new features. Do not write frontend unit tests.
+
+      # Find work
+      - Bugs: Look for swarm/todo/verify-*.pending.md with a "Last run" section; read verify/verify-report.md for "Bugs for coder"
+      - Refactors: Look for verify/refactor/*.md (any .md files; exclude .done.md). Each file lists refactor items for one todo
+
+      If there are no pending verify tasks with bugs and no files in verify/refactor/, exit immediately.
+
+      # Fix bugs
+      For each item under "Bugs for coder" in the report (when there is a pending verify task):
+      - Locate the bug (backend: convex/, frontend: src/)
+      - Fix the cause; prefer minimal changes
+
+      # Refactor / UI-UX (from verify/refactor/)
+      For each verify/refactor/{name}.md (that is not .done):
+      - Read the bullet list of improvements (page/component + what to change)
+      - Find each page or component and apply the improvement (spacing, hierarchy, typography, buttons, consistency)
+      - When done with a file, rename it to verify/refactor/{name}.done.md so it is not picked again
+
+      # Allowed
+      - Fix backend (Convex) and frontend (React, pages, components) as needed
+      - Add or extend backend tests in convex/*.test.ts if they document the fix or catch regressions
+      - Use Playwright only for E2E; do not add or run frontend unit tests (no tests in src/)
+
+      # Verify
+      - Run backend: cd mini-twitter && npm run test:run
+      - If E2E failures were fixed, re-run only the previously failing Playwright flows (start dev server, playwright-cli, run those flows, then stop server)
+      - If something still fails, note it in the task file under "Fix attempt" and leave task as .pending.md
+
+      # Update task
+      - If you fixed bugs from a pending verify task: add "Fixes applied" section; keep .pending.md so the tester re-runs next iteration
+      - If you applied refactors: you renamed verify/refactor/*.md to *.done.md
+      - If you could not fix a bug: add "Fix attempt" to the task file and what still fails
+
+      Exit after applying all fixes and refactors.
+    model: gpt-5.3-codex
+    depends_on: [tester]
+
+pipelines:
+  verify:
+    iterations: 10
+    tasks: [verify-planner, tester, coder]
