@@ -1,3 +1,34 @@
+# Verify Report: profile-tweet-count
+
+## Todo under test
+- profile-tweet-count
+
+## Backend
+- PASS — `npm run test:run`
+
+## Playwright E2E
+- Flow 1 (own profile tweet count): PASS — `verify/screenshots/profile-tweet-count-own.png`
+  - Edge: reload profile keeps tweet count visible — PASS
+- Flow 2 (other profile tweet count): PASS — `verify/screenshots/profile-tweet-count-other.png`
+  - Edge: navigate to other profile via search results shows tweet count — PASS
+- Flow 3 (zero tweets profile): PASS — `verify/screenshots/profile-tweet-count-zero.png`
+  - Edge: reload zero-tweet profile still shows "0 tweets" — PASS
+- Flow 4 (count increments after post): PASS — `verify/screenshots/profile-tweet-count-after-post.png`
+  - Edge: empty tweet submit disabled; count unchanged — PASS
+- Flow 5 (count decrements after delete): PASS — `verify/screenshots/profile-tweet-count-after-delete.png`
+  - Edge: deleting one tweet from multi-tweet profile decrements by 1 — PASS
+- Flow 6 (stats line layout): PASS — `verify/screenshots/profile-tweet-count-layout.png`
+  - Edge: followers/following links navigate to correct routes — PASS
+
+## Summary
+- Passed: 12
+- Failed: 0
+
+## Bugs for coder
+- None
+
+## Refactor / UI-UX for coder
+- None observed
 # Verify Report - profile-likes-tab
 
 ## Todo under test
