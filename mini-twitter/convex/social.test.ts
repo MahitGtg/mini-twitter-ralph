@@ -78,6 +78,72 @@ describe("social", () => {
     expect(following).toHaveLength(1);
   });
 
+  it("returns followers with user data", async () => {
+    const t = convexTest(schema, modules);
+    const followerId = await createUser(t, "follower@example.com");
+    const followingId = await createUser(t, "following@example.com");
+    const asFollower = t.withIdentity({ subject: followerId });
+
+    await asFollower.mutation(api.social.follow, { userId: followingId });
+
+    const followers = await t.query(api.social.getFollowersWithUsers, {
+      userId: followingId,
+    });
+
+    expect(followers).toHaveLength(1);
+    expect(followers[0]?._id).toBe(followerId);
+    expect(followers[0]?.username).toBe("follower");
+  });
+
+  it("returns following with user data", async () => {
+    const t = convexTest(schema, modules);
+    const followerId = await createUser(t, "follower@example.com");
+    const followingId = await createUser(t, "following@example.com");
+    const asFollower = t.withIdentity({ subject: followerId });
+
+    await asFollower.mutation(api.social.follow, { userId: followingId });
+
+    const following = await t.query(api.social.getFollowingWithUsers, {
+      userId: followerId,
+    });
+
+    expect(following).toHaveLength(1);
+    expect(following[0]?._id).toBe(followingId);
+    expect(following[0]?.username).toBe("following");
+  });
+
+  it("returns empty follower/following lists with no data", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t, "empty@example.com");
+
+    const followers = await t.query(api.social.getFollowersWithUsers, { userId });
+    const following = await t.query(api.social.getFollowingWithUsers, { userId });
+
+    expect(followers).toEqual([]);
+    expect(following).toEqual([]);
+  });
+
+  it("filters deleted users from follower/following lists", async () => {
+    const t = convexTest(schema, modules);
+    const followerId = await createUser(t, "follower@example.com");
+    const followingId = await createUser(t, "following@example.com");
+    const asFollower = t.withIdentity({ subject: followerId });
+
+    await asFollower.mutation(api.social.follow, { userId: followingId });
+    await t.run((ctx) => ctx.db.delete(followerId));
+    await t.run((ctx) => ctx.db.delete(followingId));
+
+    const followers = await t.query(api.social.getFollowersWithUsers, {
+      userId: followingId,
+    });
+    const following = await t.query(api.social.getFollowingWithUsers, {
+      userId: followerId,
+    });
+
+    expect(followers).toEqual([]);
+    expect(following).toEqual([]);
+  });
+
   it("reports isFollowing state", async () => {
     const t = convexTest(schema, modules);
     const followerId = await createUser(t, "follower@example.com");

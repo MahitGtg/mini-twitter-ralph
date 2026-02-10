@@ -1,6 +1,29 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
+
+type FollowUser = Doc<"users"> & { followedAt: number };
+type FollowDoc = Doc<"follows">;
+type FollowUserField = "followerId" | "followingId";
+
+const getFollowUsers = async (
+  ctx: QueryCtx,
+  follows: FollowDoc[],
+  userField: FollowUserField,
+): Promise<FollowUser[]> => {
+  const users = await Promise.all(
+    follows.map(async (follow) => {
+      const user = await ctx.db.get(follow[userField]);
+      if (!user) {
+        return null;
+      }
+      return { ...user, followedAt: follow.createdAt };
+    }),
+  );
+
+  return users.filter((user): user is FollowUser => user !== null);
+};
 
 export const follow = mutation({
   args: { userId: v.id("users") },
@@ -71,6 +94,32 @@ export const getFollowing = query({
       .query("follows")
       .withIndex("by_followerId", (q) => q.eq("followerId", userId))
       .collect();
+  },
+});
+
+export const getFollowersWithUsers = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const follows = await ctx.db
+      .query("follows")
+      .withIndex("by_followingId", (q) => q.eq("followingId", userId))
+      .order("desc")
+      .collect();
+
+    return getFollowUsers(ctx, follows, "followerId");
+  },
+});
+
+export const getFollowingWithUsers = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const follows = await ctx.db
+      .query("follows")
+      .withIndex("by_followerId", (q) => q.eq("followerId", userId))
+      .order("desc")
+      .collect();
+
+    return getFollowUsers(ctx, follows, "followingId");
   },
 });
 

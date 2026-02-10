@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
@@ -76,7 +77,19 @@ export default function ProfileHeader({ user, isCurrentUser }: ProfileHeaderProp
             <p className="text-sm text-slate-500">@{user.username}</p>
             <p className="mt-2 text-sm text-slate-600">{user.bio}</p>
             <p className="mt-2 text-xs text-slate-500">
-              {followerCount} followers · {followingCount} following
+              <Link
+                href={`/profile/${user.username}/followers`}
+                className="hover:underline"
+              >
+                {followerCount} followers
+              </Link>
+              {" · "}
+              <Link
+                href={`/profile/${user.username}/following`}
+                className="hover:underline"
+              >
+                {followingCount} following
+              </Link>
             </p>
           </div>
         </div>
