@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as http from "../http.js";
 import type * as likes from "../likes.js";
 import type * as seed from "../seed.js";
 import type * as social from "../social.js";
@@ -23,6 +24,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  http: typeof http;
   likes: typeof likes;
   seed: typeof seed;
   social: typeof social;
