@@ -25,34 +25,26 @@ const addAuthors = async <TTweet extends { userId: Id<"users"> }>(
     })),
   );
 
-const paginateFilteredTweets = async (
+/**
+ * Runs a single paginated query and filters the page. Convex allows only one
+ * paginated query per function, so we cannot loop to fill numItems when
+ * filtering; the returned page may be smaller than numItems.
+ */
+const paginateFilteredTweets = (
   ctx: QueryCtx,
   paginationOpts: PaginationOptions,
   filter: (tweet: Doc<"tweets">) => boolean,
 ): Promise<PaginationResult<Doc<"tweets">>> => {
-  let cursor = paginationOpts.cursor;
-  let continueCursor = paginationOpts.cursor ?? "";
-  let isDone = false;
-  let page: Doc<"tweets">[] = [];
-
-  while (page.length < paginationOpts.numItems && !isDone) {
-    const remaining = paginationOpts.numItems - page.length;
-    const result = await ctx.db
-      .query("tweets")
-      .withIndex("by_createdAt")
-      .order("desc")
-      .paginate({ ...paginationOpts, numItems: remaining, cursor });
-    const filtered = result.page.filter(filter);
-    page = page.concat(filtered);
-    cursor = result.continueCursor;
-    continueCursor = result.continueCursor;
-    isDone = result.isDone;
-    if (result.page.length === 0 && result.isDone) {
-      break;
-    }
-  }
-
-  return { page, isDone, continueCursor };
+  return ctx.db
+    .query("tweets")
+    .withIndex("by_createdAt")
+    .order("desc")
+    .paginate(paginationOpts)
+    .then((result) => ({
+      page: result.page.filter(filter),
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    }));
 };
 
 export const createTweet = mutation({
