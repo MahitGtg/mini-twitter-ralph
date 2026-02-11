@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
+import { ToastProvider } from "@/contexts/ToastContext";
 import SignUpForm from "./SignUpForm";
 
 const mockUseAuthActions = useAuthActions as unknown as vi.Mock;
@@ -13,7 +14,11 @@ describe("SignUpForm", () => {
     mockUseAuthActions.mockReturnValue({ signIn });
     mockUseRouter.mockReturnValue({ push: vi.fn() });
 
-    render(<SignUpForm />);
+    render(
+      <ToastProvider>
+        <SignUpForm />
+      </ToastProvider>,
+    );
 
     fireEvent.change(screen.getByLabelText("Email"), {
       target: { value: "alex@example.com" },
@@ -39,7 +44,11 @@ describe("SignUpForm", () => {
     mockUseAuthActions.mockReturnValue({ signIn });
     mockUseRouter.mockReturnValue({ push });
 
-    render(<SignUpForm />);
+    render(
+      <ToastProvider>
+        <SignUpForm />
+      </ToastProvider>,
+    );
 
     fireEvent.change(screen.getByLabelText("Email"), {
       target: { value: "alex@example.com" },
@@ -71,7 +80,11 @@ describe("SignUpForm", () => {
     mockUseAuthActions.mockReturnValue({ signIn });
     mockUseRouter.mockReturnValue({ push: vi.fn() });
 
-    render(<SignUpForm />);
+    render(
+      <ToastProvider>
+        <SignUpForm />
+      </ToastProvider>,
+    );
 
     fireEvent.change(screen.getByLabelText("Email"), {
       target: { value: "alex@example.com" },

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { useMutation } from "convex/react";
+import { ToastProvider } from "@/contexts/ToastContext";
 import TweetComposer from "./TweetComposer";
 
 const mockUseMutation = useMutation as unknown as vi.Mock;
@@ -9,7 +10,11 @@ describe("TweetComposer", () => {
   it("renders textarea and submit button with count", () => {
     mockUseMutation.mockReturnValue(vi.fn());
 
-    render(<TweetComposer />);
+    render(
+      <ToastProvider>
+        <TweetComposer />
+      </ToastProvider>,
+    );
 
     expect(
       screen.getByPlaceholderText("What's happening?"),
@@ -21,7 +26,11 @@ describe("TweetComposer", () => {
   it("disables submit when content exceeds limit", () => {
     mockUseMutation.mockReturnValue(vi.fn());
 
-    render(<TweetComposer />);
+    render(
+      <ToastProvider>
+        <TweetComposer />
+      </ToastProvider>,
+    );
 
     const textarea = screen.getByPlaceholderText("What's happening?");
     fireEvent.change(textarea, { target: { value: "a".repeat(301) } });
@@ -34,7 +43,11 @@ describe("TweetComposer", () => {
     const createTweet = vi.fn().mockResolvedValue("tweet-id");
     mockUseMutation.mockReturnValue(createTweet);
 
-    render(<TweetComposer />);
+    render(
+      <ToastProvider>
+        <TweetComposer />
+      </ToastProvider>,
+    );
 
     const textarea = screen.getByPlaceholderText("What's happening?");
     fireEvent.change(textarea, { target: { value: "Hello world" } });
@@ -44,14 +57,18 @@ describe("TweetComposer", () => {
       expect(createTweet).toHaveBeenCalledWith({ content: "Hello world" }),
     );
     expect(textarea).toHaveValue("");
-    expect(screen.getByText("Tweet posted!")).toBeInTheDocument();
+    expect(screen.getAllByText("Tweet posted!").length).toBeGreaterThan(0);
   });
 
   it("shows an error message when submission fails", async () => {
     const createTweet = vi.fn().mockRejectedValue(new Error("Nope"));
     mockUseMutation.mockReturnValue(createTweet);
 
-    render(<TweetComposer />);
+    render(
+      <ToastProvider>
+        <TweetComposer />
+      </ToastProvider>,
+    );
 
     const textarea = screen.getByPlaceholderText("What's happening?");
     fireEvent.change(textarea, { target: { value: "Hello world" } });

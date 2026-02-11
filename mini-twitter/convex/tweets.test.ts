@@ -20,12 +20,13 @@ const createTweet = async (
   t: ReturnType<typeof convexTest>,
   userId: Id<"users">,
   content = "Hello",
+  createdAt?: number,
 ) =>
   t.run((ctx) =>
     ctx.db.insert("tweets", {
       userId,
       content,
-      createdAt: Date.now(),
+      createdAt: createdAt ?? Date.now(),
     }),
   );
 
@@ -148,5 +149,71 @@ describe("tweets", () => {
 
     expect(tweets).toHaveLength(2);
     expect(tweets.every((tweet) => tweet.userId === userB)).toBe(true);
+  });
+
+  it("paginates user tweets", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    await createTweet(t, userId, "third", 3);
+    await createTweet(t, userId, "second", 2);
+    await createTweet(t, userId, "first", 1);
+
+    const firstPage = await t.query(api.tweets.getUserTweetsPaginated, {
+      userId,
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+    const secondPage = await t.query(api.tweets.getUserTweetsPaginated, {
+      userId,
+      paginationOpts: { numItems: 2, cursor: firstPage.continueCursor },
+    });
+
+    expect(firstPage.page).toHaveLength(2);
+    expect(firstPage.isDone).toBe(false);
+    expect(secondPage.page).toHaveLength(1);
+    expect(secondPage.isDone).toBe(true);
+  });
+
+  it("paginates feed results for followed users", async () => {
+    const t = convexTest(schema, modules);
+    const userA = await createUser(t);
+    const userB = await createUser(t);
+    const userC = await createUser(t);
+    await createTweet(t, userB, "from-b", 2);
+    await createTweet(t, userC, "from-c", 3);
+    await createTweet(t, userA, "from-a", 4);
+    await t.run((ctx) =>
+      ctx.db.insert("follows", {
+        followerId: userA,
+        followingId: userB,
+        createdAt: Date.now(),
+      }),
+    );
+
+    const asUserA = t.withIdentity({ subject: userA });
+    const page = await asUserA.query(api.tweets.getFeedPaginated, {
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+
+    expect(page.page).toHaveLength(2);
+    expect(page.page.every((tweet) => [userA, userB].includes(tweet.userId))).toBe(
+      true,
+    );
+  });
+
+  it("paginates search results", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    await createTweet(t, userId, "Hello world", 1);
+    await createTweet(t, userId, "Another post", 2);
+
+    const asUser = t.withIdentity({ subject: userId });
+    const page = await asUser.query(api.tweets.searchTweetsPaginated, {
+      query: "hello",
+      paginationOpts: { numItems: 2, cursor: null },
+    });
+
+    expect(page.page).toHaveLength(1);
+    expect(page.page[0]?.content).toContain("Hello");
+    expect(page.isDone).toBe(true);
   });
 });

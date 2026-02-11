@@ -4,14 +4,23 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
+import RetryableError from "@/components/ui/RetryableError";
+import { getRetryableAuthError } from "@/components/auth/authErrorUtils";
+import { useToast } from "@/hooks/useToast";
 
 function getFriendlySignInError(error: unknown) {
-  const message =
-    error instanceof Error
-      ? error.message.toLowerCase()
-      : typeof error === "string"
-        ? error.toLowerCase()
-        : JSON.stringify(error).toLowerCase();
+  let message = "";
+  if (error instanceof Error) {
+    message = error.message.toLowerCase();
+  } else if (typeof error === "string") {
+    message = error.toLowerCase();
+  } else {
+    try {
+      message = JSON.stringify(error)?.toLowerCase() ?? "";
+    } catch {
+      message = "";
+    }
+  }
   if (
     message.includes("invalidsecret") ||
     message.includes("invalid password") ||
@@ -60,11 +69,19 @@ export default function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
+  const [retryError, setRetryError] = useState<Error | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const clearRetryError = () => {
+    if (retryError) {
+      setRetryError(null);
+    }
+  };
+
+  const attemptSignIn = async () => {
     setStatus("");
+    setRetryError(null);
     setIsSubmitting(true);
     try {
       const response = await signIn("password", { email, password, flow: "signIn" });
@@ -75,10 +92,21 @@ export default function SignInForm() {
       }
       router.push("/");
     } catch (error) {
-      setStatus(getFriendlySignInError(error));
+      const retryableError = getRetryableAuthError(error);
+      if (retryableError) {
+        setRetryError(retryableError);
+        toast.error("Network error. Please try again.");
+      } else {
+        setStatus(getFriendlySignInError(error));
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await attemptSignIn();
   };
 
   return (
@@ -94,7 +122,10 @@ export default function SignInForm() {
           id="email"
           type="email"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            clearRetryError();
+          }}
           required
           className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-sky-400 focus:outline-none"
         />
@@ -107,7 +138,10 @@ export default function SignInForm() {
           id="password"
           type="password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => {
+            setPassword(event.target.value);
+            clearRetryError();
+          }}
           required
           className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-sky-400 focus:outline-none"
         />
@@ -125,6 +159,14 @@ export default function SignInForm() {
       >
         {isSubmitting ? "Signing in..." : "Sign in"}
       </button>
+      {retryError ? (
+        <RetryableError
+          error={retryError}
+          onRetry={attemptSignIn}
+          retryLabel="Retry sign in"
+          variant="inline"
+        />
+      ) : null}
       <p className="text-center text-xs text-slate-500">
         New here?{" "}
         <Link href="/auth/signup" className="font-semibold text-sky-600">

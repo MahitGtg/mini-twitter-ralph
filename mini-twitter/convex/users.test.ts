@@ -9,14 +9,22 @@ const createUser = async (
   {
     email,
     username,
+    name,
     bio = "",
     avatarUrl = "",
-  }: { email: string; username: string; bio?: string; avatarUrl?: string },
+  }: {
+    email: string;
+    username: string;
+    name?: string;
+    bio?: string;
+    avatarUrl?: string;
+  },
 ) =>
   t.run((ctx) =>
     ctx.db.insert("users", {
       email,
       username,
+      name,
       bio,
       avatarUrl,
       createdAt: Date.now(),
@@ -101,5 +109,35 @@ describe("users", () => {
     expect(updated?.bio).toBe("Hello there");
     expect(updated?.avatarUrl).toBe("https://example.com/avatar.png");
     expect(updated?.image).toBe("https://example.com/avatar.png");
+  });
+
+  it("updates display name with trimming", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t, {
+      email: "alex@example.com",
+      username: "alex",
+      name: "Alex",
+    });
+    const asUser = t.withIdentity({ subject: userId });
+
+    const updated = await asUser.mutation(api.users.updateProfile, {
+      name: "  Alex Johnson  ",
+    });
+
+    expect(updated?.name).toBe("Alex Johnson");
+  });
+
+  it("allows clearing the display name", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t, {
+      email: "alex@example.com",
+      username: "alex",
+      name: "Alex",
+    });
+    const asUser = t.withIdentity({ subject: userId });
+
+    const updated = await asUser.mutation(api.users.updateProfile, { name: "" });
+
+    expect(updated?.name).toBeUndefined();
   });
 });

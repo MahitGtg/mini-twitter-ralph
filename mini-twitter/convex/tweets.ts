@@ -1,6 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import {
+  paginationOptsValidator,
+  type PaginationOptions,
+  type PaginationResult,
+} from "convex/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 
 const DEFAULT_FEED_LIMIT = 50;
@@ -19,6 +24,28 @@ const addAuthors = async <TTweet extends { userId: Id<"users"> }>(
       author: await ctx.db.get(tweet.userId),
     })),
   );
+
+/**
+ * Runs a single paginated query and filters the page. Convex allows only one
+ * paginated query per function, so we cannot loop to fill numItems when
+ * filtering; the returned page may be smaller than numItems.
+ */
+const paginateFilteredTweets = (
+  ctx: QueryCtx,
+  paginationOpts: PaginationOptions,
+  filter: (tweet: Doc<"tweets">) => boolean,
+): Promise<PaginationResult<Doc<"tweets">>> => {
+  return ctx.db
+    .query("tweets")
+    .withIndex("by_createdAt")
+    .order("desc")
+    .paginate(paginationOpts)
+    .then((result) => ({
+      page: result.page.filter(filter),
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    }));
+};
 
 export const createTweet = mutation({
   args: { content: v.string() },
@@ -96,6 +123,26 @@ export const getUserTweets = query({
   },
 });
 
+export const getUserTweetsPaginated = query({
+  args: { userId: v.id("users"), paginationOpts: paginationOptsValidator },
+  handler: async (
+    ctx,
+    { userId, paginationOpts },
+  ): Promise<PaginationResult<TweetWithAuthor<Doc<"tweets">>>> => {
+    const result = await ctx.db
+      .query("tweets")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .order("desc")
+      .paginate(paginationOpts);
+    const withAuthors = await addAuthors(ctx, result.page);
+    return {
+      page: withAuthors,
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
+  },
+});
+
 export const getFeed = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
@@ -118,5 +165,86 @@ export const getFeed = query({
       .take(limit ?? DEFAULT_FEED_LIMIT);
     const tweets = candidates.filter((tweet) => allowedIds.has(tweet.userId));
     return addAuthors(ctx, tweets);
+  },
+});
+
+export const getFeedPaginated = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (
+    ctx,
+    { paginationOpts },
+  ): Promise<PaginationResult<TweetWithAuthor<Doc<"tweets">>>> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+    const follows = await ctx.db
+      .query("follows")
+      .withIndex("by_followerId", (q) => q.eq("followerId", userId))
+      .collect();
+    const allowedIds = new Set([
+      userId,
+      ...follows.map((follow) => follow.followingId),
+    ]);
+
+    const result = await paginateFilteredTweets(ctx, paginationOpts, (tweet) =>
+      allowedIds.has(tweet.userId),
+    );
+    const withAuthors = await addAuthors(ctx, result.page);
+    return {
+      page: withAuthors,
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
+  },
+});
+
+export const searchTweets = query({
+  args: { query: v.string() },
+  handler: async (ctx, { query }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+    const searchLower = query.toLowerCase().trim();
+    if (!searchLower) {
+      return [];
+    }
+    const candidates = await ctx.db
+      .query("tweets")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(200);
+    const matches = candidates
+      .filter((tweet) => tweet.content.toLowerCase().includes(searchLower))
+      .slice(0, 50);
+    return addAuthors(ctx, matches);
+  },
+});
+
+export const searchTweetsPaginated = query({
+  args: { query: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (
+    ctx,
+    { query, paginationOpts },
+  ): Promise<PaginationResult<TweetWithAuthor<Doc<"tweets">>>> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+    const searchLower = query.toLowerCase().trim();
+    if (!searchLower) {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+
+    const result = await paginateFilteredTweets(ctx, paginationOpts, (tweet) =>
+      tweet.content.toLowerCase().includes(searchLower),
+    );
+    const withAuthors = await addAuthors(ctx, result.page);
+    return {
+      page: withAuthors,
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
   },
 });

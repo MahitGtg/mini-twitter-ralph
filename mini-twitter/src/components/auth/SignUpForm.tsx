@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import RetryableError from "@/components/ui/RetryableError";
+import { getRetryableAuthError } from "@/components/auth/authErrorUtils";
+import { useToast } from "@/hooks/useToast";
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -43,6 +46,7 @@ export default function SignUpForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState("");
+  const [retryError, setRetryError] = useState<Error | null>(null);
   const [fieldErrors, setFieldErrors] = useState({
     email: "",
     username: "",
@@ -50,10 +54,17 @@ export default function SignUpForm() {
     confirmPassword: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const clearRetryError = () => {
+    if (retryError) {
+      setRetryError(null);
+    }
+  };
+
+  const attemptSignUp = async () => {
     setStatus("");
+    setRetryError(null);
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedUsername = username.trim().toLowerCase();
@@ -104,10 +115,21 @@ export default function SignUpForm() {
       });
       router.push("/");
     } catch (error) {
-      setStatus(getFriendlySignUpError(error));
+      const retryableError = getRetryableAuthError(error);
+      if (retryableError) {
+        setRetryError(retryableError);
+        toast.error("Network error. Please try again.");
+      } else {
+        setStatus(getFriendlySignUpError(error));
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await attemptSignUp();
   };
 
   return (
@@ -127,6 +149,7 @@ export default function SignUpForm() {
           onChange={(event) => {
             setEmail(event.target.value);
             setFieldErrors((prev) => ({ ...prev, email: "" }));
+            clearRetryError();
           }}
           required
           className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-sky-400 focus:outline-none"
@@ -144,6 +167,7 @@ export default function SignUpForm() {
           onChange={(event) => {
             setUsername(event.target.value);
             setFieldErrors((prev) => ({ ...prev, username: "" }));
+            clearRetryError();
           }}
           required
           className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-sky-400 focus:outline-none"
@@ -163,6 +187,7 @@ export default function SignUpForm() {
           onChange={(event) => {
             setPassword(event.target.value);
             setFieldErrors((prev) => ({ ...prev, password: "" }));
+            clearRetryError();
           }}
           minLength={MIN_PASSWORD_LENGTH}
           required
@@ -186,6 +211,7 @@ export default function SignUpForm() {
           onChange={(event) => {
             setConfirmPassword(event.target.value);
             setFieldErrors((prev) => ({ ...prev, confirmPassword: "" }));
+            clearRetryError();
           }}
           minLength={MIN_PASSWORD_LENGTH}
           required
@@ -203,6 +229,14 @@ export default function SignUpForm() {
       >
         {isSubmitting ? "Creating account..." : "Create account"}
       </button>
+      {retryError ? (
+        <RetryableError
+          error={retryError}
+          onRetry={attemptSignUp}
+          retryLabel="Retry sign up"
+          variant="inline"
+        />
+      ) : null}
       <p className="text-center text-xs text-slate-500">
         Already have an account?{" "}
         <Link href="/auth/signin" className="font-semibold text-sky-600">

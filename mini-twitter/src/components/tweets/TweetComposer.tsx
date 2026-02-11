@@ -1,48 +1,79 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import RetryableError from "@/components/ui/RetryableError";
+import { useRetryableMutation } from "@/hooks/useRetryableMutation";
+import { useToast } from "@/hooks/useToast";
 
 const MAX_LENGTH = 300;
 
 export default function TweetComposer() {
   const [content, setContent] = useState("");
   const [status, setStatus] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const createTweet = useMutation(api.tweets.createTweet);
+  const { execute, error, isLoading, retry, clearError } = useRetryableMutation(
+    api.tweets.createTweet,
+  );
+  const { toast } = useToast();
 
   const remaining = MAX_LENGTH - content.length;
   const isOverLimit = remaining < 0;
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!content.trim() || isOverLimit) {
+  const submitTweet = async () => {
+    if (!content.trim() || isOverLimit || isLoading) {
       return;
     }
     setStatus("");
-    setIsSubmitting(true);
+    clearError();
     try {
-      await createTweet({ content });
+      await execute({ content });
       setContent("");
       setStatus("Tweet posted!");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to post tweet.");
-    } finally {
-      setIsSubmitting(false);
+      toast.success("Tweet posted!");
+    } catch {
+      setStatus("");
+      toast.error("Failed to post tweet.");
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await submitTweet();
+  };
+
+  const handleKeyDown = async (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      await submitTweet();
+      return;
+    }
+
+    if (event.key === "Escape" && content && !isLoading) {
+      event.preventDefault();
+      setContent("");
+      setStatus("");
+      clearError();
     }
   };
 
   return (
     <section
       id="compose"
-      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
     >
       <h2 className="text-lg font-semibold text-slate-900">Compose</h2>
       <form onSubmit={handleSubmit} className="mt-4 grid gap-4">
         <textarea
           value={content}
-          onChange={(event) => setContent(event.target.value)}
+          onChange={(event) => {
+            setContent(event.target.value);
+            if (error) {
+              clearError();
+            }
+          }}
+          onKeyDown={handleKeyDown}
           rows={4}
           maxLength={MAX_LENGTH + 10}
           placeholder="What's happening?"
@@ -52,15 +83,20 @@ export default function TweetComposer() {
               : "border-slate-200 focus:border-sky-400"
           }`}
         />
-        <div className="grid min-h-8 grid-cols-[1fr_auto] items-center gap-2">
-          <span
-            className={`text-sm font-medium ${
-              isOverLimit ? "text-rose-600" : "text-slate-500"
-            }`}
-          >
-            {remaining} characters remaining
-          </span>
-          <div className="min-h-6 text-right">
+        <div className="grid min-h-8 gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div className="grid gap-1">
+            <span
+              className={`text-sm font-medium ${
+                isOverLimit ? "text-rose-600" : "text-slate-500"
+              }`}
+            >
+              {remaining} characters remaining
+            </span>
+            <span className="text-xs text-slate-400">
+              Ctrl+Enter or Cmd+Enter to tweet
+            </span>
+          </div>
+          <div className="min-h-6 text-left sm:text-right">
             {isOverLimit ? (
               <p
                 role="alert"
@@ -87,11 +123,17 @@ export default function TweetComposer() {
         </div>
         <button
           type="submit"
-          disabled={isSubmitting || !content.trim() || isOverLimit}
-          className="justify-self-end rounded-full bg-sky-500 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isLoading || !content.trim() || isOverLimit}
+          className="w-full justify-self-stretch rounded-full bg-sky-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:justify-self-end"
         >
-          {isSubmitting ? "Posting..." : "Tweet"}
+          {isLoading ? "Posting..." : "Tweet"}
         </button>
+        <RetryableError
+          error={error}
+          onRetry={retry}
+          retryLabel="Retry tweet"
+          variant="inline"
+        />
       </form>
     </section>
   );
